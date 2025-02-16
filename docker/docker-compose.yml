@@ -8,6 +8,7 @@ services:
       - "5000:5000"
     volumes:
       - ../flask-app:/app
+    restart: always  # Ensures Flask restarts on boot
     depends_on:
       - opencv
       - yolo
@@ -18,6 +19,7 @@ services:
       dockerfile: docker/opencv.Dockerfile
     volumes:
       - ../opencv:/app
+    restart: always  # Ensures OpenCV restarts on boot
 
   yolo:
     build:
@@ -25,3 +27,4 @@ services:
       dockerfile: docker/yolo.Dockerfile
     volumes:
       - ../yolo:/app
+    restart: always  # Ensures YOLO restarts on boot
