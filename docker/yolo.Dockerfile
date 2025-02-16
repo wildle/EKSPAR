@@ -4,10 +4,11 @@ WORKDIR /app
 
 COPY ./yolo /app
 
-# Install system dependencies
+# Install system dependencies for YOLO
 RUN apt update && apt install -y libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 
 # Install YOLO dependencies
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-CMD ["python", "-c", "import time; while True: time.sleep(1000)"]
+# Keep the container alive
+CMD ["bash", "-c", "while true; do sleep 1000; done"]
