@@ -17,6 +17,10 @@ services:
     build:
       context: ..
       dockerfile: docker/opencv.Dockerfile
+    devices:
+      - "/dev/video0:/dev/video0"
+    privileged: true
+
     ports:
       - "5001:5001"  # OpenCV läuft auf 5001
     restart: always
