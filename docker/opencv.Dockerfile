@@ -4,11 +4,14 @@ WORKDIR /app
 
 COPY ./opencv /app
 
-# Install system dependencies for OpenCV
-RUN apt update && apt install -y libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+# Install system dependencies (inkl. curl für Debugging)
+RUN apt update && apt install -y libgl1 libglib2.0-0 curl && rm -rf /var/lib/apt/lists/*
 
-# Install OpenCV dependencies
-RUN pip install --no-cache-dir -r /app/requirements.txt
+# Install Python dependencies
+RUN pip install --no-cache-dir flask opencv-python-headless
 
-# Keep the container alive
-CMD ["bash", "-c", "while true; do sleep 1000; done"]
+# Expose the correct port
+EXPOSE 5001
+
+# Start Flask inside OpenCV container
+CMD ["python", "/app/opencv_main.py"]

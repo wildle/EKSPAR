@@ -8,7 +8,7 @@ services:
       - "5000:5000"
     volumes:
       - ../flask-app:/app
-    restart: always  # Ensures Flask restarts on boot
+    restart: always
     depends_on:
       - opencv
       - yolo
@@ -17,14 +17,14 @@ services:
     build:
       context: ..
       dockerfile: docker/opencv.Dockerfile
-    volumes:
-      - ../opencv:/app
-    restart: always  # Ensures OpenCV restarts on boot
+    ports:
+      - "5001:5001"  # OpenCV läuft auf 5001
+    restart: always
 
   yolo:
     build:
       context: ..
       dockerfile: docker/yolo.Dockerfile
-    volumes:
-      - ../yolo:/app
-    restart: always  # Ensures YOLO restarts on boot
+    ports:
+      - "5002:5002"  # YOLO bekommt nun eine API auf 5002
+    restart: always

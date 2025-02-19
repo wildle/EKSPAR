@@ -4,11 +4,14 @@ WORKDIR /app
 
 COPY ./yolo /app
 
-# Install system dependencies for YOLO
-RUN apt update && apt install -y libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt update && apt install -y libgl1 libglib2.0-0 curl && rm -rf /var/lib/apt/lists/*
 
-# Install YOLO dependencies
-RUN pip install --no-cache-dir -r /app/requirements.txt
+# Install Python dependencies
+RUN pip install --no-cache-dir flask ultralytics
 
-# Keep the container alive
-CMD ["bash", "-c", "while true; do sleep 1000; done"]
+# Expose the correct port
+EXPOSE 5002
+
+# Start Flask inside YOLO container
+CMD ["python", "/app/yolo_main.py"]
