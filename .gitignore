@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtuelle Umgebungen
+.venv/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# System-Dateien & temporäre Dateien
+.DS_Store
+Thumbs.db
+logs/
+*.log
+tmp/
+temp/
+
+# Flask
+instance/
+.webassets-cache
+.env
+
+# OpenCV & Debugging-Daten
+*.jpg
+*.png
+*.mp4
+*.avi
+*.h5
+*.ckpt
+
+# Raspberry Pi & systemd
+/etc/systemd/system/*
+
+# Datenbank-Dateien
+data/
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VS Code & IDE-spezifische Dateien
+.vscode/
+.idea/
+.history/
+
+# Unit-Tests & Coverage-Reports
+.tox/
+.nox/
+.coverage
+.coverage.*
+.pytest_cache/
+hypothesis/
+
+# PyInstaller
+*.manifest
+*.spec
