@@ -60,3 +60,14 @@ hypothesis/
 # PyInstaller
 *.manifest
 *.spec
+
+# Docker
+docker-compose.override.yml
+**/docker-compose.override.yml
+**/.dockerignore
+**/docker/.env
+**/docker/logs/
+**/docker/tmp/
+**/docker/data/
+**/docker/.cache
+**/docker/.config
