@@ -34,3 +34,6 @@ model/*.param
 
 # Environment
 .env
+
+# Konfigurationsdaten (nicht tracken)
+config/*.json
