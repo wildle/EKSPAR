@@ -1,22 +1,26 @@
-# capture_raw.py
 from picamera2 import Picamera2
-import time
+from PIL import Image
+import os
 
-OUTPUT_PATH = "static/last_config.jpg"
+OUTPUT_PATH = os.path.join("static", "last_config.jpg")
 
-def capture():
+def main():
     try:
         picam2 = Picamera2()
-        picam2.configure(picam2.create_still_configuration())
+        picam2.configure(picam2.create_still_configuration(
+            main={"size": (1280, 720)}
+        ))
         picam2.start()
-        time.sleep(1.5)
-        picam2.capture_file(OUTPUT_PATH)
+        frame = picam2.capture_array()
         picam2.close()
-        print("[OK] Bild erfolgreich aufgenommen.")
-        return True
+
+        # Bild speichern
+        image = Image.fromarray(frame)
+        image.save(OUTPUT_PATH)
+        print("[OK] Bild gespeichert:", OUTPUT_PATH)
+
     except Exception as e:
-        print(f"[ERR] Kameraaufnahme fehlgeschlagen: {e}")
-        return False
+        print("[ERR] Kameraaufnahme fehlgeschlagen:", e)
 
 if __name__ == "__main__":
-    capture()
+    main()
