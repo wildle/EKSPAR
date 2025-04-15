@@ -27,11 +27,15 @@ def load_bbox():
 
 def export_counts(results):
     try:
+        in_count = getattr(results, "in_count", 0)
+        out_count = getattr(results, "out_count", 0)
+        current = max(0, in_count - out_count)  # Keine negativen Werte
+
         data = {
             "timestamp": datetime.datetime.now().isoformat(),
-            "in": getattr(results, "in_count", 0),
-            "out": getattr(results, "out_count", 0),
-            "current": getattr(results, "in_count", 0) - getattr(results, "out_count", 0),
+            "in": in_count,
+            "out": out_count,
+            "current": current,
             "total_tracks": getattr(results, "total_tracks", 0)
         }
 

@@ -27,6 +27,24 @@ from camera_interface import capture_image
 from streamlit_drawable_canvas import st_canvas
 from components import show_live_counts
 
+# ─── Datenbank-Initialisierung ───
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS log (
+            timestamp TEXT,
+            in_count INTEGER,
+            out_count INTEGER,
+            current_count INTEGER,
+            total_tracks INTEGER
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
 # Layout
 st.set_page_config(page_title="EKSPAR", layout="wide")
 st.title("EKSPAR – Dashboard")
@@ -50,6 +68,15 @@ if page == "📷 Konfiguration":
         img = Image.open(IMAGE_PATH)
         st.image(img, caption="Aufgenommenes Bild", width=720)
 
+        # Bestehende Box laden und anzeigen
+        existing_box = None
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, "r") as f:
+                try:
+                    existing_box = json.load(f)
+                except json.JSONDecodeError:
+                    pass
+
         canvas_result = st_canvas(
             fill_color="rgba(255, 0, 0, 0.3)",
             stroke_width=3,
@@ -60,6 +87,21 @@ if page == "📷 Konfiguration":
             width=720,
             drawing_mode="rect",
             key="canvas",
+            initial_drawing={
+                "version": "4.4.0",
+                "objects": [
+                    {
+                        "type": "rect",
+                        "left": existing_box["x"] if existing_box else 0,
+                        "top": existing_box["y"] if existing_box else 0,
+                        "width": existing_box["w"] if existing_box else 100,
+                        "height": existing_box["h"] if existing_box else 100,
+                        "fill": "rgba(255, 0, 0, 0.3)",
+                        "stroke": "#FF0000",
+                        "strokeWidth": 3,
+                    }
+                ] if existing_box else []
+            }
         )
 
         if canvas_result.json_data is not None:
@@ -86,13 +128,28 @@ elif page == "📈 Live Dashboard":
     st.markdown("---")
     st.markdown("## 📈 Verlauf der Zählwerte")
 
+    # Zeitfilter
+    st.sidebar.markdown("### 🔎 Zeitfilter")
+    time_filter = st.sidebar.selectbox("Zeitraum", ["Letzte 10 Minuten", "Letzte Stunde", "Letzte 24 Stunden", "Alle"])
+
+    now = pd.Timestamp.now()
     try:
         conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql_query("SELECT * FROM log ORDER BY timestamp DESC LIMIT 100", conn)
+        df = pd.read_sql_query("SELECT * FROM log", conn)
         conn.close()
 
         df["timestamp"] = pd.to_datetime(df["timestamp"])
         df = df.sort_values("timestamp")
+
+        if time_filter == "Letzte 10 Minuten":
+            df = df[df["timestamp"] >= now - pd.Timedelta(minutes=10)]
+        elif time_filter == "Letzte Stunde":
+            df = df[df["timestamp"] >= now - pd.Timedelta(hours=1)]
+        elif time_filter == "Letzte 24 Stunden":
+            df = df[df["timestamp"] >= now - pd.Timedelta(hours=24)]
+
+        # Personenanzahl darf nicht negativ sein
+        df["current_count"] = df["current_count"].clip(lower=0)
 
         chart = alt.Chart(df).mark_line(point=True).encode(
             x=alt.X("timestamp:T", title="Zeit"),
