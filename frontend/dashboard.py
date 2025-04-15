@@ -1,17 +1,34 @@
 import streamlit as st
 import os
-from backend.camera_interface import capture_image
-from frontend.components import draw_bbox_ui  # Bounding Box UI importieren
+import sys
+from PIL import Image
+import json
+import time
 
-IMAGE_PATH = "static/last_config.jpg"
+# ─── Pfade setzen ───
+CURRENT_DIR = os.path.dirname(__file__)
+ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
+BACKEND_DIR = os.path.join(ROOT_DIR, "backend")
+STATIC_DIR = os.path.join(ROOT_DIR, "static")
+CONFIG_PATH = os.path.join(ROOT_DIR, "backend", "config", "bbox_config.json")
 
-# Layout-Setup
+IMAGE_PATH = os.path.join(STATIC_DIR, "last_config.jpg")
+
+# sys.path erweitern, damit Backend-Import funktioniert
+sys.path.append(BACKEND_DIR)
+sys.path.append(os.path.join(ROOT_DIR, "frontend"))
+
+from camera_interface import capture_image
+from streamlit_drawable_canvas import st_canvas
+from components import show_live_counts
+
+# Layout
 st.set_page_config(page_title="EKSPAR – Konfiguration", layout="wide")
 st.title("📷 EKSPAR – Konfigurationsmodus")
 
 st.markdown("### Schritt 1: Einzelbild aufnehmen")
 
-# Button: Neues Bild aufnehmen
+# Bild aufnehmen
 if st.button("📷 Neues Bild aufnehmen"):
     with st.spinner("Kamera aktiviert..."):
         success = capture_image()
@@ -20,14 +37,40 @@ if st.button("📷 Neues Bild aufnehmen"):
     else:
         st.error("Fehler beim Aufnehmen des Bildes.")
 
-# Bild anzeigen (zentriert)
+# Bild anzeigen + Bounding Box UI
 if os.path.exists(IMAGE_PATH):
-    st.markdown("##### Aufgenommenes Bild (1280×720)")
-    col1, col2, col3 = st.columns([1, 4, 1])
-    with col2:
-        st.image(IMAGE_PATH, use_column_width=False, width=1280)
+    img = Image.open(IMAGE_PATH)
+    st.image(img, caption="Aufgenommenes Bild", width=720)
 
-    # Schritt 2: Bounding Box zeichnen und speichern
-    draw_bbox_ui()
+    canvas_result = st_canvas(
+        fill_color="rgba(255, 0, 0, 0.3)",
+        stroke_width=3,
+        stroke_color="#FF0000",
+        background_image=img,
+        update_streamlit=True,
+        height=int(img.height * (720 / img.width)),
+        width=720,
+        drawing_mode="rect",
+        key="canvas",
+    )
+
+    if canvas_result.json_data is not None:
+        for obj in canvas_result.json_data["objects"]:
+            if obj["type"] == "rect":
+                left = int(obj["left"])
+                top = int(obj["top"])
+                width = int(obj["width"])
+                height = int(obj["height"])
+
+                bbox = {"x": left, "y": top, "w": width, "h": height}
+                with open(CONFIG_PATH, "w") as f:
+                    json.dump(bbox, f, indent=2)
+
+                st.success(f"Gespeicherte Box: x={left}, y={top}, w={width}, h={height}")
 else:
     st.warning("Noch kein Bild aufgenommen. Bitte zuerst ein Bild erstellen.")
+
+# Live-Zähler anzeigen
+st.markdown("---")
+st.markdown("## 📊 Live-Zählerstand")
+show_live_counts()
