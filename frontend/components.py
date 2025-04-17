@@ -3,6 +3,8 @@ from streamlit_drawable_canvas import st_canvas
 from PIL import Image
 import json
 import os
+import pandas as pd
+import altair as alt
 
 # ─── Pfade setzen ───
 CURRENT_DIR = os.path.dirname(__file__)
@@ -37,7 +39,6 @@ def draw_bbox_ui():
         st.error(f"Fehler beim Laden des Bildes: {e}")
         return
 
-    # Zeichenfläche mittig ausrichten
     col1, col2, col3 = st.columns([1, 4, 1])
     with col2:
         canvas_result = st_canvas(
@@ -51,7 +52,6 @@ def draw_bbox_ui():
             key="canvas"
         )
 
-    # Letztes Rechteck speichern
     if canvas_result.json_data and canvas_result.json_data["objects"]:
         obj = canvas_result.json_data["objects"][-1]
         left = int(obj["left"])
@@ -63,7 +63,6 @@ def draw_bbox_ui():
         if st.button("✅ Bounding Box speichern"):
             save_bbox(bbox)
 
-    # Gespeicherte Box anzeigen
     saved = load_bbox()
     if saved:
         st.info(
@@ -71,8 +70,6 @@ def draw_bbox_ui():
         )
 
 def show_live_counts():
-    st.markdown("### 📊 Live-Zähler")
-
     if not os.path.exists(COUNTER_PATH):
         st.warning("Zählerdatei nicht gefunden.")
         return
@@ -90,3 +87,17 @@ def show_live_counts():
         st.caption(f"Aktualisiert: {data.get('timestamp', 'unbekannt')}")
     except Exception as e:
         st.error(f"Fehler beim Laden der Zähldaten: {e}")
+
+def show_count_history(df: pd.DataFrame):
+    df["current_count"] = df["current_count"].clip(lower=0)
+
+    chart = alt.Chart(df).mark_line(point=True).encode(
+        x=alt.X("timestamp:T", title="Zeit", axis=alt.Axis(format="%H:%M")),
+        y=alt.Y("current_count:Q", title="Aktuell im Raum"),
+        tooltip=["timestamp:T", "in_count", "out_count", "current_count"]
+    ).properties(
+        height=300,
+        title="🕓 Personen im Raum (Verlauf)"
+    )
+
+    st.altair_chart(chart, use_container_width=True)
