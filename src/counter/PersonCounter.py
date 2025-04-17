@@ -3,6 +3,7 @@ import time
 import json
 import datetime
 import numpy as np
+import sqlite3
 from ultralytics.solutions import ObjectCounter
 
 # ──────────────────────────────────────────────
@@ -11,6 +12,7 @@ MODEL_PATH = "model/yolo11n.pt"
 LIVE_FRAME_PATH = "data/live/live_frame.npy"
 BBOX_CONFIG_PATH = "backend/config/bbox_config.json"
 EXPORT_PATH = "data/counter.json"
+LOG_DB_PATH = "data/log.db"
 CONFIDENCE_THRESHOLD = 0.25
 # ──────────────────────────────────────────────
 
@@ -25,11 +27,39 @@ def load_bbox():
         print(f"[ERROR] Fehler beim Laden der bbox_config.json: {e}")
         return None
 
+def log_to_db(data):
+    try:
+        conn = sqlite3.connect(LOG_DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS log (
+                timestamp TEXT,
+                in_count INTEGER,
+                out_count INTEGER,
+                current_count INTEGER,
+                total_tracks INTEGER
+            )
+        """)
+        cursor.execute("""
+            INSERT INTO log (timestamp, in_count, out_count, current_count, total_tracks)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            data["timestamp"],
+            data["in"],
+            data["out"],
+            data["current"],
+            data["total_tracks"]
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[DB] Fehler beim Schreiben in die Datenbank: {e}")
+
 def export_counts(results):
     try:
         in_count = getattr(results, "in_count", 0)
         out_count = getattr(results, "out_count", 0)
-        current = max(0, in_count - out_count)  # Keine negativen Werte
+        current = max(0, in_count - out_count)
 
         data = {
             "timestamp": datetime.datetime.now().isoformat(),
@@ -41,6 +71,8 @@ def export_counts(results):
 
         with open(EXPORT_PATH, "w") as f:
             json.dump(data, f, indent=2)
+
+        log_to_db(data)
 
     except Exception as e:
         print(f"[WARN] Fehler beim Exportieren der Zähldaten: {e}")
@@ -76,7 +108,7 @@ def main():
         classes=[0],  # nur Personen zählen
         region=region,
         stream=False,
-        show=False  # HEADLESS!
+        show=False
     )
 
     while True:
