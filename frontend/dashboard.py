@@ -56,7 +56,7 @@ if page == "📈 Live Dashboard":
     st.markdown("📈 Verlauf – Personen im Raum")
 
     st.sidebar.markdown("### 🔎 Zeitfilter")
-    time_filter = st.sidebar.selectbox("Zeitraum", ["Letzte 10 Minuten", "Letzte Stunde", "Letzte 24 Stunden", "Alle"])
+    time_filter = st.sidebar.selectbox("Zeitraum", ["Heute", "Gestern", "Letzte Woche", "Letzter Monat", "Letztes Jahr", "Insgesamt"])
 
     now = pd.Timestamp.now()
     try:
@@ -67,12 +67,17 @@ if page == "📈 Live Dashboard":
         df["timestamp"] = pd.to_datetime(df["timestamp"])
         df = df.sort_values("timestamp")
 
-        if time_filter == "Letzte 10 Minuten":
-            df = df[df["timestamp"] >= now - pd.Timedelta(minutes=10)]
-        elif time_filter == "Letzte Stunde":
-            df = df[df["timestamp"] >= now - pd.Timedelta(hours=1)]
-        elif time_filter == "Letzte 24 Stunden":
-            df = df[df["timestamp"] >= now - pd.Timedelta(hours=24)]
+        if time_filter == "Heute":
+            df = df[df["timestamp"].dt.date == now.date()]
+        elif time_filter == "Gestern":
+            df = df[df["timestamp"].dt.date == (now - pd.Timedelta(days=1)).date()]
+        elif time_filter == "Letzte Woche":
+            df = df[df["timestamp"] >= now - pd.Timedelta(weeks=1)]
+        elif time_filter == "Letzter Monat":
+            df = df[df["timestamp"] >= now - pd.DateOffset(months=1)]
+        elif time_filter == "Letztes Jahr":
+            df = df[df["timestamp"] >= now - pd.DateOffset(years=1)]
+        # "Insgesamt" zeigt alle Daten
 
         show_count_history(df)
 
