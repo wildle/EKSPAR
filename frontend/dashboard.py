@@ -1,12 +1,12 @@
 import streamlit as st
 import os
 import sys
-from PIL import Image
+from PIL import Image, ImageDraw
 import json
-import time
 import sqlite3
 import pandas as pd
 import altair as alt
+from streamlit_drawable_canvas import st_canvas
 
 # ─── Pfade setzen ───
 CURRENT_DIR = os.path.dirname(__file__)
@@ -14,24 +14,21 @@ ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 BACKEND_DIR = os.path.join(ROOT_DIR, "backend")
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
 DATA_DIR = os.path.join(ROOT_DIR, "data")
-CONFIG_PATH = os.path.join(ROOT_DIR, "backend", "config", "bbox_config.json")
+CONFIG_PATH = os.path.join(BACKEND_DIR, "config", "bbox_config.json")
 DB_PATH = os.path.join(DATA_DIR, "log.db")
-
 IMAGE_PATH = os.path.join(STATIC_DIR, "last_config.jpg")
 
-# sys.path erweitern, damit Backend-Import funktioniert
 sys.path.append(BACKEND_DIR)
 sys.path.append(os.path.join(ROOT_DIR, "frontend"))
 
 from camera_interface import capture_image
-from streamlit_drawable_canvas import st_canvas
-from components import show_live_counts
+from components import show_live_counts, show_count_history
 
-# ─── Datenbank-Initialisierung ───
+# ─── DB initialisieren ───
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS log (
             timestamp TEXT,
             in_count INTEGER,
@@ -39,96 +36,25 @@ def init_db():
             current_count INTEGER,
             total_tracks INTEGER
         )
-    ''')
+    """)
     conn.commit()
     conn.close()
 
 init_db()
 
-# Layout
+# ─── Layout ───
 st.set_page_config(page_title="EKSPAR", layout="wide")
-st.title("EKSPAR – Dashboard")
+st.title("EKSPAR – Live Dashboard")
 
-# Seitenwahl
-page = st.sidebar.radio("Navigation", ["📷 Konfiguration", "📈 Live Dashboard"])
+page = st.sidebar.radio("Navigation", ["📈 Live Dashboard", "📷 Konfiguration"])
 
-if page == "📷 Konfiguration":
-    st.header("📷 EKSPAR – Konfigurationsmodus")
-    st.markdown("### Schritt 1: Einzelbild aufnehmen")
-
-    if st.button("📷 Neues Bild aufnehmen"):
-        with st.spinner("Kamera aktiviert..."):
-            success = capture_image()
-        if success:
-            st.success("Bild erfolgreich aufgenommen!")
-        else:
-            st.error("Fehler beim Aufnehmen des Bildes.")
-
-    if os.path.exists(IMAGE_PATH):
-        img = Image.open(IMAGE_PATH)
-        st.image(img, caption="Aufgenommenes Bild", width=720)
-
-        # Bestehende Box laden und anzeigen
-        existing_box = None
-        if os.path.exists(CONFIG_PATH):
-            with open(CONFIG_PATH, "r") as f:
-                try:
-                    existing_box = json.load(f)
-                except json.JSONDecodeError:
-                    pass
-
-        canvas_result = st_canvas(
-            fill_color="rgba(255, 0, 0, 0.3)",
-            stroke_width=3,
-            stroke_color="#FF0000",
-            background_image=img,
-            update_streamlit=True,
-            height=int(img.height * (720 / img.width)),
-            width=720,
-            drawing_mode="rect",
-            key="canvas",
-            initial_drawing={
-                "version": "4.4.0",
-                "objects": [
-                    {
-                        "type": "rect",
-                        "left": existing_box["x"] if existing_box else 0,
-                        "top": existing_box["y"] if existing_box else 0,
-                        "width": existing_box["w"] if existing_box else 100,
-                        "height": existing_box["h"] if existing_box else 100,
-                        "fill": "rgba(255, 0, 0, 0.3)",
-                        "stroke": "#FF0000",
-                        "strokeWidth": 3,
-                    }
-                ] if existing_box else []
-            }
-        )
-
-        if canvas_result.json_data is not None:
-            for obj in canvas_result.json_data["objects"]:
-                if obj["type"] == "rect":
-                    left = int(obj["left"])
-                    top = int(obj["top"])
-                    width = int(obj["width"])
-                    height = int(obj["height"])
-
-                    bbox = {"x": left, "y": top, "w": width, "h": height}
-                    with open(CONFIG_PATH, "w") as f:
-                        json.dump(bbox, f, indent=2)
-
-                    st.success(f"Gespeicherte Box: x={left}, y={top}, w={width}, h={height}")
-    else:
-        st.warning("Noch kein Bild aufgenommen. Bitte zuerst ein Bild erstellen.")
-
-elif page == "📈 Live Dashboard":
-    st.header("📈 EKSPAR – Live-Zähler & Verlauf")
-    st.markdown("## 📊 Live-Zählerstand")
+# ─── Live Dashboard ───
+if page == "📈 Live Dashboard":
     show_live_counts()
 
     st.markdown("---")
-    st.markdown("## 📈 Verlauf der Zählwerte")
+    st.markdown("📈 Verlauf – Personen im Raum")
 
-    # Zeitfilter
     st.sidebar.markdown("### 🔎 Zeitfilter")
     time_filter = st.sidebar.selectbox("Zeitraum", ["Letzte 10 Minuten", "Letzte Stunde", "Letzte 24 Stunden", "Alle"])
 
@@ -148,18 +74,88 @@ elif page == "📈 Live Dashboard":
         elif time_filter == "Letzte 24 Stunden":
             df = df[df["timestamp"] >= now - pd.Timedelta(hours=24)]
 
-        # Personenanzahl darf nicht negativ sein
-        df["current_count"] = df["current_count"].clip(lower=0)
+        show_count_history(df)
 
-        chart = alt.Chart(df).mark_line(point=True).encode(
-            x=alt.X("timestamp:T", title="Zeit"),
-            y=alt.Y("current_count:Q", title="Aktuell im Raum"),
-            tooltip=["timestamp", "in_count", "out_count", "current_count", "total_tracks"]
-        ).properties(
-            height=300,
-            title="🕓 Personen im Raum (Verlauf)"
-        )
-
-        st.altair_chart(chart, use_container_width=True)
     except Exception as e:
         st.warning(f"Fehler beim Laden des Verlaufs: {e}")
+
+# ─── Konfigurationsseite ───
+elif page == "📷 Konfiguration":
+    st.header("📷 EKSPAR – Konfigurationsmodus")
+
+    edit_mode = st.session_state.get("edit_mode", False)
+
+    if not edit_mode:
+        if os.path.exists(IMAGE_PATH):
+            img = Image.open(IMAGE_PATH).convert("RGB")
+            display_width = 720
+            display_height = int(img.height * (display_width / img.width))
+            resized_img = img.resize((display_width, display_height))
+            draw_img = resized_img.copy()
+
+            has_box = False
+            if os.path.exists(CONFIG_PATH):
+                with open(CONFIG_PATH, "r") as f:
+                    box = json.load(f)
+                    draw = ImageDraw.Draw(draw_img)
+                    scale_x = display_width / img.width
+                    scale_y = display_height / img.height
+                    draw.rectangle([
+                        (int(box["x"] * scale_x), int(box["y"] * scale_y)),
+                        (int((box["x"] + box["w"]) * scale_x), int((box["y"] + box["h"]) * scale_y))
+                    ], outline="#007BFF", width=3)
+                    has_box = True
+
+            st.image(draw_img, caption="Aufgenommenes Bild mit Zählbereich", width=display_width)
+
+            if st.button("🖑 Neue Konfiguration starten"):
+                st.session_state.edit_mode = True
+                if os.path.exists(CONFIG_PATH):
+                    os.remove(CONFIG_PATH)
+                st.rerun()
+        else:
+            st.warning("Noch kein Bild vorhanden. Bitte zuerst ein neues Bild aufnehmen.")
+
+    else:
+        st.markdown("### Schritt 1: Einzelbild aufnehmen")
+        if st.button("📷 Neues Bild aufnehmen"):
+            with st.spinner("Kamera aktiviert..."):
+                success = capture_image()
+            if success:
+                st.success("Bild erfolgreich aufgenommen!")
+            else:
+                st.error("Fehler beim Aufnehmen des Bildes.")
+
+        if os.path.exists(IMAGE_PATH):
+            img = Image.open(IMAGE_PATH)
+
+            canvas_result = st_canvas(
+                fill_color="rgba(0, 123, 255, 0.3)",
+                stroke_width=3,
+                stroke_color="#007BFF",
+                background_image=img,
+                update_streamlit=True,
+                height=int(img.height * (720 / img.width)),
+                width=720,
+                drawing_mode="rect",
+                key="canvas_edit_mode"
+            )
+
+            if st.button("📂 Konfiguration speichern", key="save_button_edit_mode"):
+                if canvas_result.json_data and canvas_result.json_data["objects"]:
+                    obj = canvas_result.json_data["objects"][-1]
+                    bbox = {
+                        "x": int(obj["left"] * (img.width / 720)),
+                        "y": int(obj["top"] * (img.height / int(img.height * (720 / img.width)))),
+                        "w": int(obj["width"] * (img.width / 720)),
+                        "h": int(obj["height"] * (img.height / int(img.height * (720 / img.width))))
+                    }
+                    with open(CONFIG_PATH, "w") as f:
+                        json.dump(bbox, f, indent=2)
+                    st.success("Konfiguration wurde gespeichert. Zurück zur Ansicht.")
+                    st.session_state.edit_mode = False
+                    st.rerun()
+                else:
+                    st.error("❌ Kein Zählbereich markiert. Bitte zuerst ein Rechteck einzeichnen.")
+        else:
+            st.warning("Kein Bild gefunden. Bitte zuerst ein Bild aufnehmen.")
