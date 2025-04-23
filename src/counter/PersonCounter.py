@@ -89,12 +89,9 @@ def main():
     original_width = 1280
     scale = original_width / canvas_width
 
-    scaled_bbox = {
-        "x": int(bbox["x"] * scale),
-        "y": int(bbox["y"] * scale),
-        "w": int(bbox["w"] * scale),
-        "h": int(bbox["h"] * scale)
-    }
+    # Verwende die gespeicherten Werte direkt – sie sind bereits auf 1280×720 angepasst
+    scaled_bbox = bbox
+
 
     region = [
         (scaled_bbox["x"], scaled_bbox["y"]),
