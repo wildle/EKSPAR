@@ -37,3 +37,8 @@ model/*.param
 
 # Konfigurationsdaten (nicht tracken)
 config/*.json
+
+# Live-Daten – nicht tracken
+data/live/live_frame.npy
+data/live/counter.json
+data/live/log.db
