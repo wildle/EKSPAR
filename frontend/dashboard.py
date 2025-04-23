@@ -44,6 +44,16 @@ init_db()
 
 # ─── Layout ───
 st.set_page_config(page_title="EKSPAR", layout="wide")
+st.markdown("""
+    <style>
+        .big-metric {
+            font-size: 1.6em;
+            font-weight: bold;
+            margin-top: 0.25em;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("EKSPAR – Live Dashboard")
 
 page = st.sidebar.radio("Navigation", ["📈 Live Dashboard", "📷 Konfiguration"])
@@ -53,7 +63,7 @@ if page == "📈 Live Dashboard":
     show_live_counts()
 
     st.markdown("---")
-    st.markdown("📈 Verlauf – Personen im Raum")
+    st.markdown("## 📈 Verlauf – Personen im Raum")
 
     st.sidebar.markdown("### 🔎 Zeitfilter")
     time_filter = st.sidebar.selectbox("Zeitraum", ["Heute", "Gestern", "Letzte Woche", "Letzter Monat", "Letztes Jahr", "Insgesamt"])
@@ -77,9 +87,25 @@ if page == "📈 Live Dashboard":
             df = df[df["timestamp"] >= now - pd.DateOffset(months=1)]
         elif time_filter == "Letztes Jahr":
             df = df[df["timestamp"] >= now - pd.DateOffset(years=1)]
-        # "Insgesamt" zeigt alle Daten
 
-        show_count_history(df)
+        df["in_delta"] = df["in_count"].diff().fillna(0)
+        df["in_delta"] = df["in_delta"].clip(lower=0)
+        total_people = int(df["in_delta"].sum())
+
+        filter_text = {
+            "Heute": "heute",
+            "Gestern": "gestern",
+            "Letzte Woche": "in der letzten Woche",
+            "Letzter Monat": "im letzten Monat",
+            "Letztes Jahr": "im letzten Jahr",
+            "Insgesamt": "insgesamt"
+        }
+
+        st.markdown(f"""
+        <div class="big-metric">👥 {total_people:,} Personen {filter_text.get(time_filter, '')}</div>
+        """, unsafe_allow_html=True)
+
+        show_count_history(df, y_axis_step=1)
 
     except Exception as e:
         st.warning(f"Fehler beim Laden des Verlaufs: {e}")
@@ -98,7 +124,6 @@ elif page == "📷 Konfiguration":
             resized_img = img.resize((display_width, display_height))
             draw_img = resized_img.copy()
 
-            has_box = False
             if os.path.exists(CONFIG_PATH):
                 with open(CONFIG_PATH, "r") as f:
                     box = json.load(f)
@@ -109,7 +134,6 @@ elif page == "📷 Konfiguration":
                         (int(box["x"] * scale_x), int(box["y"] * scale_y)),
                         (int((box["x"] + box["w"]) * scale_x), int((box["y"] + box["h"]) * scale_y))
                     ], outline="#007BFF", width=3)
-                    has_box = True
 
             st.image(draw_img, caption="Aufgenommenes Bild mit Zählbereich", width=display_width)
 
@@ -149,12 +173,16 @@ elif page == "📷 Konfiguration":
             if st.button("📂 Konfiguration speichern", key="save_button_edit_mode"):
                 if canvas_result.json_data and canvas_result.json_data["objects"]:
                     obj = canvas_result.json_data["objects"][-1]
+                    scale_x = img.width / 720
+                    scale_y = img.height / int(img.height * (720 / img.width))
+
                     bbox = {
-                        "x": int(obj["left"] * (img.width / 720)),
-                        "y": int(obj["top"] * (img.height / int(img.height * (720 / img.width)))),
-                        "w": int(obj["width"] * (img.width / 720)),
-                        "h": int(obj["height"] * (img.height / int(img.height * (720 / img.width))))
+                        "x": int(obj["left"] * scale_x),
+                        "y": int(obj["top"] * scale_y),
+                        "w": int(obj["width"] * scale_x),
+                        "h": int(obj["height"] * scale_y)
                     }
+
                     with open(CONFIG_PATH, "w") as f:
                         json.dump(bbox, f, indent=2)
                     st.success("Konfiguration wurde gespeichert. Zurück zur Ansicht.")
