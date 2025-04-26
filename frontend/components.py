@@ -104,13 +104,62 @@ def show_count_history(df, y_axis_step=1):
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df = df.sort_values("timestamp")
 
-    chart = alt.Chart(df).mark_line(point=True).encode(
+    # ─── Aktuelle Werte runden ───
+    df["current_count"] = df["current_count"].astype(int)
+
+    # ─── Tageszeit-Klassifikation ───
+    def annotate_daytime(hour):
+        if 0 <= hour < 6:
+            return "🌙 Nacht"
+        elif 6 <= hour < 12:
+            return "🕖 Morgens"
+        elif 12 <= hour < 18:
+            return "☀️ Nachmittag"
+        else:
+            return "🌆 Abends"
+
+    df["daytime"] = df["timestamp"].dt.hour.apply(annotate_daytime)
+
+    # ─── Maxwert für Marker ermitteln ───
+    peak_row = df.loc[df["current_count"].idxmax()]
+    peak_point = pd.DataFrame([{
+        "timestamp": peak_row["timestamp"],
+        "current_count": peak_row["current_count"],
+        "label": f"⏱ Höchstwert: {peak_row['current_count']} Personen ({peak_row['timestamp'].strftime('%H:%M')})"
+    }])
+
+    # ─── Hauptchart ───
+    chart = alt.Chart(df).mark_area(
+        interpolate="monotone",
+        line={"color": "#1f77b4"},
+        color=alt.Gradient(
+            gradient="linear",
+            stops=[alt.GradientStop(color="#1f77b440", offset=0), alt.GradientStop(color="#1f77b400", offset=1)],
+            x1=1, x2=1, y1=1, y2=0
+        )
+    ).encode(
         x=alt.X("timestamp:T", title="Zeit", axis=alt.Axis(format="%H:%M")),
-        y=alt.Y("current_count:Q", title="Aktuell im Raum", axis=alt.Axis(tickMinStep=y_axis_step)),
-        tooltip=["timestamp:T", "in_count", "out_count", "current_count", "total_tracks"]
+        y=alt.Y("current_count:Q", title="Personen im Raum", axis=alt.Axis(tickMinStep=1, format=".0f")),
+        tooltip=[
+            alt.Tooltip("timestamp:T", title="Zeitpunkt"),
+            alt.Tooltip("current_count:Q", title="Anzahl"),
+            alt.Tooltip("daytime:N", title="Tageszeit")
+        ]
     ).properties(
         height=300,
         title="🕓 Personen im Raum (Verlauf)"
     )
 
-    st.altair_chart(chart, use_container_width=True)
+    # ─── Max-Wert markieren ───
+    peak = alt.Chart(peak_point).mark_point(
+        shape="circle",
+        size=80,
+        color="red"
+    ).encode(
+        x="timestamp:T",
+        y="current_count:Q",
+        tooltip="label:N"
+    )
+
+    st.altair_chart(chart + peak, use_container_width=True)
+
