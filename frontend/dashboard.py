@@ -1,29 +1,26 @@
-
 import streamlit as st
 import os
 import sys
-from PIL import Image, ImageDraw
 import json
 import sqlite3
 import pandas as pd
 import altair as alt
-from streamlit_drawable_canvas import st_canvas
+from PIL import Image, ImageDraw
 
-# ─── Pfade setzen ───
-CURRENT_DIR = os.path.dirname(__file__)
-ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
-BACKEND_DIR = os.path.join(ROOT_DIR, "backend")
-STATIC_DIR = os.path.join(ROOT_DIR, "static")
-DATA_DIR = os.path.join(ROOT_DIR, "data")
-CONFIG_PATH = os.path.join(BACKEND_DIR, "config", "bbox_config.json")
-DB_PATH = os.path.join(DATA_DIR, "log.db")
-IMAGE_PATH = os.path.join(STATIC_DIR, "last_config.jpg")
+# 🛠 Systempfad erweitern, damit backend und frontend erkannt werden
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-sys.path.append(BACKEND_DIR)
-sys.path.append(os.path.join(ROOT_DIR, "frontend"))
+# 🛠 Projektpfade definieren
+PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+DATA_DIR = os.path.join(PROJECT_DIR, 'data')
+STATIC_DIR = os.path.join(PROJECT_DIR, 'static')
+DB_PATH = os.path.join(DATA_DIR, 'log.db')
+CONFIG_PATH = os.path.join(PROJECT_DIR, 'backend', 'config', 'bbox_config.json')
+IMAGE_PATH = os.path.join(STATIC_DIR, 'last_config.jpg')
 
-from camera_interface import capture_image
-from components import show_live_counts, show_count_history
+# 🛠 Eigene Module importieren
+from backend.camera.camera_interface import capture_image
+from frontend.components import show_live_counts, show_count_history
 
 # ─── DB initialisieren ───
 def init_db():
@@ -41,10 +38,10 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Dynamische Taktung je nach Zeitfilter
+# ─── Dynamische Aggregation ───
 def apply_dynamic_aggregation(df, time_filter):
     df["timestamp"] = pd.to_datetime(df["timestamp"])
-    
+
     if time_filter == "Heute":
         df["rounded_time"] = df["timestamp"].dt.floor("10min")
     elif time_filter == "Gestern":
@@ -72,10 +69,12 @@ def apply_dynamic_aggregation(df, time_filter):
 
     return df
 
+# ─── Initialisieren ───
 init_db()
 
 # ─── Layout ───
 st.set_page_config(page_title="EKSPAR", layout="wide")
+
 st.markdown("""
     <style>
         .big-metric {
@@ -143,7 +142,7 @@ if page == "📈 Live Dashboard":
     except Exception as e:
         st.warning(f"Fehler beim Laden des Verlaufs: {e}")
 
-# ─── Konfigurationsseite ───
+# ─── Konfigurationsmodus ───
 elif page == "📷 Konfiguration":
     st.header("📷 EKSPAR – Konfigurationsmodus")
 
@@ -190,6 +189,8 @@ elif page == "📷 Konfiguration":
 
         if os.path.exists(IMAGE_PATH):
             img = Image.open(IMAGE_PATH)
+
+            from streamlit_drawable_canvas import st_canvas
 
             canvas_result = st_canvas(
                 fill_color="rgba(0, 123, 255, 0.3)",

@@ -35,10 +35,14 @@ model/*.param
 # Environment
 .env
 
-# Konfigurationsdaten (nicht tracken)
+# Configurations (do not track sensitive or local setup)
 config/*.json
 
-# Live-Daten – nicht tracken
-data/live/live_frame.npy
-data/live/counter.json
-data/live/log.db
+# Live data (privacy relevant)
+data/live/
+*.db
+
+# Development artifacts
+dumpster/
+.mypy_cache/
+*.egg-info/
