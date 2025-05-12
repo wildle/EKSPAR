@@ -1,8 +1,8 @@
 ultralytics==8.1.38
-picamera2
 opencv-python
 Pillow
 numpy
 pandas
 streamlit
+streamlit-drawable-canvas
 altair
