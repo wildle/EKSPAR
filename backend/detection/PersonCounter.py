@@ -104,8 +104,7 @@ def main():
         model=MODEL_PATH,
         classes=[0],  # nur Personen zählen
         region=region,
-        stream=False,
-        show=False
+        show=True
     )
 
     while True:
