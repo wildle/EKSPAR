@@ -3,6 +3,6 @@ opencv-python
 Pillow
 numpy
 pandas
-streamlit
-streamlit-drawable-canvas
+streamlit==1.44.1
+streamlit-drawable-canvas==0.8.0
 altair
