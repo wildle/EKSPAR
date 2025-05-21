@@ -38,6 +38,11 @@ model/*.param
 # Configurations (do not track sensitive or local setup)
 config/*.json
 
+# Zähl- & Konfigurationsdaten (nicht tracken)
+backend/config/bbox_config.json
+data/counter.json
+
+
 # Live data (privacy relevant)
 data/live/
 *.db
