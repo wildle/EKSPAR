@@ -24,3 +24,19 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run frontend/dashboard.py
+
+
+## Befehle zum start
+source .venv/bin/activate
+
+## Dashboard
+streamlit run frontend/dashboard.py
+
+## Kamera
+python backend/camera/camera_capture.py
+
+## Zählsystem
+python backend/detection/PersonCounter.py
+
+
+rpicam-hello -t 0 --post-process-file /usr/share/rpi-camera-assets/hailo_yolov8_inference.json
