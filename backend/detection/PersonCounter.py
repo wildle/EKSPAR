@@ -8,7 +8,7 @@ from ultralytics.solutions import ObjectCounter
 
 # ──────────────────────────────────────────────
 # Konfiguration
-MODEL_PATH = "models/yolo11n.pt"
+MODEL_PATH = "model/yolo11n.pt"
 LIVE_FRAME_PATH = "data/live/live_frame.npy"
 BBOX_CONFIG_PATH = "backend/config/bbox_config.json"
 EXPORT_PATH = "data/counter.json"
