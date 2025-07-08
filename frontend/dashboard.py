@@ -20,7 +20,7 @@ IMAGE_PATH = os.path.join(STATIC_DIR, 'last_config.jpg')
 
 # 🛠 Eigene Module importieren
 from backend.camera.camera_interface import capture_image
-from frontend.components import show_live_counts, show_count_history
+from frontend.components import show_live_counts, show_count_history, show_hourly_distribution
 
 # ─── DB initialisieren ───
 def init_db():
@@ -145,6 +145,10 @@ if page == "📈 Live Dashboard":
         """, unsafe_allow_html=True)
 
         show_count_history(df, y_axis_step=1)
+
+        if time_filter in ["Heute", "Gestern", "Letzte Woche"]:
+            st.altair_chart(show_hourly_distribution(df), use_container_width=True)
+
 
     except Exception as e:
         st.warning(f"Fehler beim Laden des Verlaufs: {e}")

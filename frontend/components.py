@@ -163,3 +163,19 @@ def show_count_history(df, y_axis_step=1):
 
     st.altair_chart(chart + peak, use_container_width=True)
 
+def show_hourly_distribution(df):
+    df["hour"] = df["timestamp"].dt.hour
+    hourly = df.groupby("hour")["in_delta"].sum().reset_index()
+
+    chart = alt.Chart(hourly).mark_bar().encode(
+        x=alt.X("hour:O", title="Stunde des Tages", sort=list(range(24))),
+        y=alt.Y("in_delta:Q", title="Personenanzahl"),
+        tooltip=["hour", "in_delta"]
+    ).properties(
+        width="container",
+        height=300,
+        title="📊 Personen pro Stunde"
+    )
+
+    return chart    
+
