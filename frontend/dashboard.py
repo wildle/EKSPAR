@@ -20,7 +20,7 @@ IMAGE_PATH = os.path.join(STATIC_DIR, 'last_config.jpg')
 
 # 🛠 Eigene Module importieren
 from backend.camera.camera_interface import capture_image
-from frontend.components import show_live_counts, show_count_history, show_hourly_distribution
+from frontend.components import show_live_counts, show_count_history, show_hourly_distribution, show_daily_average
 
 # ─── DB initialisieren ───
 def init_db():
@@ -148,6 +148,10 @@ if page == "📈 Live Dashboard":
 
         if time_filter in ["Heute", "Gestern", "Letzte Woche"]:
             st.altair_chart(show_hourly_distribution(df), use_container_width=True)
+
+        if time_filter in ["Letzte Woche", "Letzter Monat", "Insgesamt"]:
+            st.altair_chart(show_daily_average(df), use_container_width=True)
+
 
 
     except Exception as e:

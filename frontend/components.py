@@ -179,3 +179,27 @@ def show_hourly_distribution(df):
 
     return chart    
 
+def show_daily_average(df):
+    df = df.copy()
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["time"] = df["timestamp"].dt.strftime("%H:%M")
+    
+    if "in_delta" not in df.columns:
+        df["in_delta"] = df["in_count"].diff().fillna(df["in_count"]).clip(lower=0)
+
+    daily_avg = df.groupby("time")["in_delta"].mean().reset_index()
+    daily_avg["in_delta"] = daily_avg["in_delta"].round(2)
+
+    chart = alt.Chart(daily_avg).mark_line(
+        point=True,
+        interpolate="monotone"
+    ).encode(
+        x=alt.X("time:O", title="Uhrzeit", sort="ascending"),
+        y=alt.Y("in_delta:Q", title="Ø Personen pro Zeitfenster"),
+        tooltip=["time", "in_delta"]
+    ).properties(
+        title="📈 Durchschnittlicher Tagesverlauf",
+        height=300
+    )
+
+    return chart
