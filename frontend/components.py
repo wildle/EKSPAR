@@ -98,12 +98,18 @@ def show_live_counts():
 def show_count_history(df, time_filter, y_axis_step=1):
 
     # Dynamische Achsenformatierung basierend auf Zeitraum
-    if time_filter in ["Letzte Woche", "Letzter Monat", "Letztes Jahr", "Insgesamt"]:
-        x_format = "%d.%m"
-        tick_count = "day"
-    else:
+    if time_filter in ["Heute", "Gestern"]:
         x_format = "%H:%M"
         tick_count = "hour"
+    elif time_filter in ["Letzte Woche", "Letzter Monat"]:
+        x_format = "%d.%m."
+        tick_count = "day"
+    elif time_filter in ["Letztes Jahr", "Insgesamt"]:
+        x_format = "%b %Y"
+        tick_count = "month"
+    else:
+        x_format = "%d.%m."
+        tick_count = "day"
 
     x_axis = alt.X(
         "timestamp:T",
