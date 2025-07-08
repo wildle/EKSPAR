@@ -59,3 +59,5 @@ data/counter.json
 # Hailo Repos
 hailo-rpi5-examples/
 hailo-apps-infra/
+dumbster/hailo-rpi5-examples
+external/hailo-apps-infra
