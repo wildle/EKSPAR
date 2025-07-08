@@ -170,10 +170,18 @@ elif page == "📷 Konfiguration":
             st.image(draw_img, caption="Aufgenommenes Bild mit Zählbereich", width=display_width)
 
             if st.button("🖑 Neue Konfiguration starten"):
+                # Kamera auf Konfigurationsmodus setzen
+                with open("camera.lock", "w") as f:
+                    f.write("config")
+                print("[INFO] Konfigurationsmodus gestartet – Zählung wird gestoppt.")
+
+                st.info("System ist im Konfigurationsmodus – Zählung wurde unterbrochen.")
+
                 st.session_state.edit_mode = True
                 if os.path.exists(CONFIG_PATH):
                     os.remove(CONFIG_PATH)
                 st.rerun()
+
         else:
             st.warning("Noch kein Bild vorhanden. Bitte zuerst ein neues Bild aufnehmen.")
 
