@@ -146,13 +146,24 @@ if page == "📈 Live Dashboard":
 
         show_count_history(df, y_axis_step=1)
 
+        
         if time_filter in ["Heute", "Gestern", "Letzte Woche"]:
             st.altair_chart(show_hourly_distribution(df), use_container_width=True)
 
         if time_filter in ["Letzte Woche", "Letzter Monat", "Insgesamt"]:
             st.altair_chart(show_daily_average(df), use_container_width=True)
 
+        # CSV-Export für alle Zeiträume
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="📤 CSV-Export starten",
+            data=csv,
+            file_name=f"ekpsar_export_{time_filter.lower().replace(' ', '_')}.csv",
+            mime="text/csv"
+        )
 
+        st.caption("Exportiert die aggregierten Zähldaten im CSV-Format.")
+        
 
     except Exception as e:
         st.warning(f"Fehler beim Laden des Verlaufs: {e}")
