@@ -95,7 +95,22 @@ def show_live_counts():
         st.error(f"Fehler beim Laden der Zähldaten: {e}")
 
 # ─── Chartanzeige ───
-def show_count_history(df, y_axis_step=1):
+def show_count_history(df, time_filter, y_axis_step=1):
+
+    # Dynamische Achsenformatierung basierend auf Zeitraum
+    if time_filter in ["Letzte Woche", "Letzter Monat", "Letztes Jahr", "Insgesamt"]:
+        x_format = "%d.%m"
+        tick_count = "day"
+    else:
+        x_format = "%H:%M"
+        tick_count = "hour"
+
+    x_axis = alt.X(
+        "timestamp:T",
+        title="Zeit",
+        axis=alt.Axis(format=x_format, tickCount=tick_count, labelAngle=0)
+    )
+
     if df.empty:
         st.info("Keine Daten für den ausgewählten Zeitraum.")
         return
@@ -138,7 +153,7 @@ def show_count_history(df, y_axis_step=1):
             x1=1, x2=1, y1=1, y2=0
         )
     ).encode(
-        x=alt.X("timestamp:T", title="Zeit", axis=alt.Axis(format="%H:%M")),
+        x=x_axis,
         y=alt.Y("current_count:Q", title="Personen im Raum", axis=alt.Axis(tickMinStep=1, format=".0f")),
         tooltip=[
             alt.Tooltip("timestamp:T", title="Zeitpunkt"),

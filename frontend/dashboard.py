@@ -144,7 +144,8 @@ if page == "📈 Live Dashboard":
         <div class="big-metric">👥 {total_people:,} Personen {filter_text.get(time_filter, '')}</div>
         """, unsafe_allow_html=True)
 
-        show_count_history(df, y_axis_step=1)
+        show_count_history(df, time_filter) # optional y_axis_step
+
 
         
         if time_filter in ["Heute", "Gestern", "Letzte Woche"]:
