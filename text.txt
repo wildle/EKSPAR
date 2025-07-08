@@ -1,0 +1,21 @@
+(.venv) flowsense@vision:~/EKSPAR $ python3 ekspar.py
+[INFO] Starte Dashboard (Streamlit)...
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8501
+  Network URL: http://172.20.10.2:8501
+
+[INFO] Starte Personenzählung...
+[INFO] EKSPAR-System läuft. STRG+C zum Beenden.
+[INFO] Starte Personenzählung mit direkter Kamera...
+Ultralytics Solutions: ✅ {'source': None, 'model': 'models/yolo11n.pt', 'classes': [0], 'show_conf': True, 'show_labels': True, 'region': [(547, 5), (692, 5), (692, 717), (547, 717)], 'colormap': 21, 'show_in': True, 'show_out': True, 'up_angle': 145.0, 'down_angle': 90, 'kpts': [6, 8, 10], 'analytics_type': 'line', 'figsize': (12.8, 7.2), 'blur_ratio': 0.5, 'vision_point': (20, 20), 'crop_dir': 'cropped-detections', 'json_file': None, 'line_width': 2, 'records': 5, 'fps': 30.0, 'max_hist': 5, 'meter_per_pixel': 0.05, 'max_speed': 120, 'show': False, 'iou': 0.7, 'conf': 0.25, 'device': None, 'max_det': 300, 'half': False, 'tracker': 'botsort.yaml', 'verbose': True, 'data': 'images'}
+[7:29:57.837900657] [51381]  INFO Camera camera_manager.cpp:326 libcamera v0.5.0+59-d83ff0a4
+[7:29:57.862104499] [51729]  INFO RPI pisp.cpp:720 libpisp version v1.2.1 981977ff21f3 29-04-2025 (14:13:50)
+[7:29:57.879070609] [51729]  INFO RPI pisp.cpp:1179 Registered camera /base/axi/pcie@1000120000/rp1/i2c@88000/imx500@1a to CFE device /dev/media0 and ISP device /dev/media1 using PiSP variant BCM2712_D0
+[7:29:57.885300060] [51381]  INFO Camera camera.cpp:1205 configuring streams: (0) 1280x720-RGB888 (1) 2028x1520-RGGB_PISP_COMP1
+[7:29:57.886887409] [51729]  INFO RPI pisp.cpp:1483 Sensor: /base/axi/pcie@1000120000/rp1/i2c@88000/imx500@1a - Selected sensor format: 2028x1520-SRGGB10_1X10 - Selected CFE format: 2028x1520-PC1R
+[INFO] Kamera auf 'config' gesetzt.
+[INFO] Konfigurationsmodus erkannt – Zählung wird beendet.
+[INFO] Bild erfolgreich aufgenommen (via Subprozess).
+[INFO] Kamera wieder auf 'counting' gesetzt.

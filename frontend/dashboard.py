@@ -217,6 +217,12 @@ elif page == "📷 Konfiguration":
                         "h": int(obj["height"] * scale_y)
                     }
 
+                    # Konfigurationsmodus beenden
+                    with open("camera.lock", "w") as f:
+                        f.write("counting")
+                    print("[INFO] Konfiguration gespeichert – Zählung wieder aktiviert.")
+
+
                     with open(CONFIG_PATH, "w") as f:
                         json.dump(bbox, f, indent=2)
                     st.success("Konfiguration wurde gespeichert. Zurück zur Ansicht.")

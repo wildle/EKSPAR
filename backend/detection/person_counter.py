@@ -2,20 +2,29 @@ import os
 import time
 import json
 import datetime
-import numpy as np
 import sqlite3
+from picamera2 import Picamera2
 from ultralytics.solutions import ObjectCounter
+import cv2  # Nur für Debug-Visualisierung
 
-# ──────────────────────────────────────────────
-# Konfiguration
+# ─── Konfiguration ───
 MODEL_PATH = "models/yolo11n.pt"
-LIVE_FRAME_PATH = "data/live/live_frame.npy"
 BBOX_CONFIG_PATH = "backend/config/bbox_config.json"
 EXPORT_PATH = "data/counter.json"
 LOG_DB_PATH = "data/log.db"
-CONFIDENCE_THRESHOLD = 0.25
-# ──────────────────────────────────────────────
+LOCK_PATH = "camera.lock"
+HEADLESS_MODE = False  # False = Debug mit OpenCV Fenster | True = HEADLESS Modus ohne GUI
+FRAME_WIDTH = 1280
+FRAME_HEIGHT = 720
 
+# ─── Kamera sperre prüfen ───
+def is_counting_mode():
+    if not os.path.exists(LOCK_PATH):
+        return False
+    with open(LOCK_PATH, "r") as f:
+        return f.read().strip() == "counting"
+
+# ─── Bounding Box laden ───
 def load_bbox():
     if not os.path.exists(BBOX_CONFIG_PATH):
         print("[WARN] Keine Zählbereich-Konfiguration gefunden.")
@@ -27,6 +36,7 @@ def load_bbox():
         print(f"[ERROR] Fehler beim Laden der bbox_config.json: {e}")
         return None
 
+# ─── Zähldaten speichern ───
 def log_to_db(data):
     try:
         conn = sqlite3.connect(LOG_DB_PATH)
@@ -77,65 +87,75 @@ def export_counts(results):
     except Exception as e:
         print(f"[WARN] Fehler beim Exportieren der Zähldaten: {e}")
 
+# ─── Hauptfunktion ───
 def main():
-    print("[INFO] Starte headless Personenzählung...")
+    print("[INFO] Starte Personenzählung mit direkter Kamera...")
+
     bbox = load_bbox()
     if not bbox:
         print("[ERROR] Kein Zählbereich definiert.")
         return
 
-    # Skalierung von 720px Canvas auf 1280px Frame
-    canvas_width = 720
-    original_width = 1280
-    scale = original_width / canvas_width
-
-    # Verwende die gespeicherten Werte direkt – sie sind bereits auf 1280×720 angepasst
-    scaled_bbox = bbox
-
-
     region = [
-        (scaled_bbox["x"], scaled_bbox["y"]),
-        (scaled_bbox["x"] + scaled_bbox["w"], scaled_bbox["y"]),
-        (scaled_bbox["x"] + scaled_bbox["w"], scaled_bbox["y"] + scaled_bbox["h"]),
-        (scaled_bbox["x"], scaled_bbox["y"] + scaled_bbox["h"])
+        (bbox["x"], bbox["y"]),
+        (bbox["x"] + bbox["w"], bbox["y"]),
+        (bbox["x"] + bbox["w"], bbox["y"] + bbox["h"]),
+        (bbox["x"], bbox["y"] + bbox["h"])
     ]
 
     counter = ObjectCounter(
         model=MODEL_PATH,
-        classes=[0],  # nur Personen zählen
+        classes=[0],
         region=region,
-        show=True
+        show=False
     )
 
-    while True:
-        try:
-            if not os.path.exists(LIVE_FRAME_PATH):
-                time.sleep(0.2)
-                continue
+    picam2 = Picamera2()
+    picam2.preview_configuration.main.size = (FRAME_WIDTH, FRAME_HEIGHT)
+    picam2.preview_configuration.main.format = "RGB888"
+    picam2.preview_configuration.align()
+    picam2.configure("preview")
+    picam2.start()
 
-            frame = None
-            for _ in range(3):
-                try:
-                    frame = np.load(LIVE_FRAME_PATH, allow_pickle=False)
-                    if frame is not None and frame.shape[0] > 0:
-                        break
-                except Exception:
-                    time.sleep(0.05)
+    try:
+        while True:
+            if not is_counting_mode():
+                print("[INFO] Konfigurationsmodus erkannt – Zählung wird beendet.")
+                picam2.stop()
+                if not HEADLESS_MODE:
+                    cv2.destroyAllWindows()
+                os._exit(0)
 
-            if frame is None:
-                print("[WARN] Frame konnte nicht gelesen werden.")
-                continue
 
-            results = counter(frame)
+            frame = picam2.capture_array()
+            results = counter.process(frame)
+            #print(f"[DEBUG] results.plot_im = {hasattr(results, 'plot_im')}")
             export_counts(results)
 
-        except KeyboardInterrupt:
-            print("\n[INFO] Abbruch durch Benutzer.")
-            break
+            if not HEADLESS_MODE:
+                frame_to_show = results.plot_im
 
-        except Exception as e:
-            print(f"[ERROR] Fehler: {e}")
-            time.sleep(0.5)
+                if "window_initialized" not in globals():
+                    cv2.namedWindow("Zählung", cv2.WINDOW_NORMAL)
+                    globals()["window_initialized"] = True
+
+                cv2.imshow("Zählung", frame_to_show)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+
+
+    except KeyboardInterrupt:
+        print("\n[INFO] Abbruch durch Benutzer.")
+
+    except Exception as e:
+        print(f"[ERROR] Fehler: {e}")
+
+    finally:
+        picam2.stop()
+        if not HEADLESS_MODE:
+            cv2.destroyAllWindows()
+        print("[INFO] Personenzählung gestoppt.")
+
 
 if __name__ == "__main__":
     main()
