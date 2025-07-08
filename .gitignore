@@ -51,3 +51,11 @@ data/live/
 dumpster/
 .mypy_cache/
 *.egg-info/
+
+# Laufzeit-Dateien
+camera.lock
+data/counter.json
+
+# Hailo Repos
+hailo-rpi5-examples/
+hailo-apps-infra/
