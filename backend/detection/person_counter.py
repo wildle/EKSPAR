@@ -13,7 +13,7 @@ BBOX_CONFIG_PATH = "backend/config/bbox_config.json"
 EXPORT_PATH = "data/counter.json"
 LOG_DB_PATH = "data/log.db"
 LOCK_PATH = "camera.lock"
-HEADLESS_MODE = False  # False = Debug mit OpenCV Fenster | True = HEADLESS Modus ohne GUI
+HEADLESS_MODE = True  # False = Debug mit OpenCV Fenster | True = HEADLESS Modus ohne GUI
 FRAME_WIDTH = 1280
 FRAME_HEIGHT = 720
 

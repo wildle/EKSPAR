@@ -40,7 +40,7 @@ def init_db():
 
 # ─── Dynamische Aggregation ───
 def apply_dynamic_aggregation(df, time_filter):
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"], format="%Y-%m-%dT%H:%M:%S.%f", errors="coerce")
 
     if time_filter == "Heute":
         df["rounded_time"] = df["timestamp"].dt.floor("10min")
@@ -99,21 +99,28 @@ if page == "📈 Live Dashboard":
     st.sidebar.markdown("### 🔎 Zeitfilter")
     time_filter = st.sidebar.selectbox("Zeitraum", ["Heute", "Gestern", "Letzte Woche", "Letzter Monat", "Letztes Jahr", "Insgesamt"])
 
-    now = pd.Timestamp.now()
+    now = pd.Timestamp.now().tz_localize(None)  # explizit lokal und naive
+
     try:
         conn = sqlite3.connect(DB_PATH)
         df = pd.read_sql_query("SELECT * FROM log", conn)
         conn.close()
 
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        
+        df["timestamp"] = pd.to_datetime(df["timestamp"], format="%Y-%m-%dT%H:%M:%S.%f", errors="coerce")
         df = df.sort_values("timestamp")
 
+        print("[DEBUG] now =", now)
+        print("[DEBUG] df timestamps (tail):", df["timestamp"].tail().tolist())
+
         if time_filter == "Heute":
-            df = df[df["timestamp"].dt.date == now.date()]
+            df = df[df["timestamp"].dt.normalize() == now.normalize()]
         elif time_filter == "Gestern":
             df = df[df["timestamp"].dt.date == (now - pd.Timedelta(days=1)).date()]
         elif time_filter == "Letzte Woche":
-            df = df[df["timestamp"] >= now - pd.Timedelta(weeks=1)]
+            # df = df[df["timestamp"] >= now - pd.Timedelta(weeks=1)]
+            week_ago = now - pd.Timedelta(days=7)
+            df = df[df["timestamp"] >= week_ago]
         elif time_filter == "Letzter Monat":
             df = df[df["timestamp"] >= now - pd.DateOffset(months=1)]
         elif time_filter == "Letztes Jahr":
