@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import time
 
 # Pfad zur capture_raw.py dynamisch bestimmen
 SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "capture_raw.py"))
@@ -10,6 +11,15 @@ SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "capture_r
 SYSTEM_PYTHON = "/usr/bin/python3"
 
 def capture_image() -> bool:
+
+        # Kamera auf Konfigurationsmodus setzen
+    with open("camera.lock", "w") as f:
+        f.write("config")
+    print("[INFO] Kamera auf 'config' gesetzt.")
+
+    # Warten, bis person_counter.py Kamera freigegeben hat
+    time.sleep(1.5)
+
     try:
         # Starte capture_raw.py als Subprozess
         result = subprocess.run(
@@ -19,6 +29,7 @@ def capture_image() -> bool:
         )
         if result.returncode == 0 and "[OK]" in result.stdout:
             print("[INFO] Bild erfolgreich aufgenommen (via Subprozess).")
+
             return True
         else:
             print("[ERROR] Aufnahme fehlgeschlagen:")
