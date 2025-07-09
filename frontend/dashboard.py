@@ -7,6 +7,9 @@ import pandas as pd
 import altair as alt
 from PIL import Image, ImageDraw
 
+# ─── Layout ───
+st.set_page_config(page_title="EKSPAR", layout="wide")
+
 # 🛠 Systempfad erweitern, damit backend und frontend erkannt werden
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -16,11 +19,18 @@ DATA_DIR = os.path.join(PROJECT_DIR, 'data')
 STATIC_DIR = os.path.join(PROJECT_DIR, 'static')
 DB_PATH = os.path.join(DATA_DIR, 'log.db')
 CONFIG_PATH = os.path.join(PROJECT_DIR, 'backend', 'config', 'bbox_config.json')
+DIRECTION_PATH = os.path.join(PROJECT_DIR, 'backend', 'config', 'direction_config.json')
 IMAGE_PATH = os.path.join(STATIC_DIR, 'last_config.jpg')
 
 # 🛠 Eigene Module importieren
 from backend.camera.camera_interface import capture_image
 from frontend.components import show_live_counts, show_count_history, show_hourly_distribution, show_daily_average
+
+# ─── Sicherheitsprüfung ───
+if "step" not in st.session_state and (not os.path.exists(CONFIG_PATH) or not os.path.exists(DIRECTION_PATH)):
+    st.warning("⚠️ Keine Konfiguration vorhanden – bitte starten Sie die Einrichtung.")
+    st.session_state.step = 1
+
 
 # ─── DB initialisieren ───
 def init_db():
@@ -71,9 +81,6 @@ def apply_dynamic_aggregation(df, time_filter):
 
 # ─── Initialisieren ───
 init_db()
-
-# ─── Layout ───
-st.set_page_config(page_title="EKSPAR", layout="wide")
 
 st.markdown("""
     <style>
