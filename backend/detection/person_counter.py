@@ -10,6 +10,7 @@ import cv2  # Nur für Debug-Visualisierung
 # ─── Konfiguration ───
 MODEL_PATH = "models/yolo11n.pt"
 BBOX_CONFIG_PATH = "backend/config/bbox_config.json"
+DIRECTION_CONFIG_PATH = "backend/config/direction_config.json"
 EXPORT_PATH = "data/counter.json"
 LOG_DB_PATH = "data/log.db"
 LOCK_PATH = "camera.lock"
@@ -35,6 +36,19 @@ def load_bbox():
     except Exception as e:
         print(f"[ERROR] Fehler beim Laden der bbox_config.json: {e}")
         return None
+
+# ─── Richtungskonfiguration laden ───
+def load_direction_config():
+    if not os.path.exists(DIRECTION_CONFIG_PATH):
+        print("[WARN] Keine Richtungskonfiguration gefunden.")
+        return None
+    try:
+        with open(DIRECTION_CONFIG_PATH, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[ERROR] Fehler beim Laden der direction_config.json: {e}")
+        return None
+
 
 # ─── Zähldaten speichern ───
 def log_to_db(data):
@@ -96,6 +110,17 @@ def main():
         print("[ERROR] Kein Zählbereich definiert.")
         return
 
+    direction = load_direction_config()
+    if not direction or "angle" not in direction:
+        print("[ERROR] Keine gültige Richtungskonfiguration gefunden.")
+        return
+
+    entry_angle = direction["angle"]
+    up_angle = entry_angle
+    down_angle = (entry_angle + 180) % 360
+    print(f"[INFO] Eintrittsrichtung: {entry_angle}° → up={up_angle}, down={down_angle}")
+    
+
     region = [
         (bbox["x"], bbox["y"]),
         (bbox["x"] + bbox["w"], bbox["y"]),
@@ -107,8 +132,11 @@ def main():
         model=MODEL_PATH,
         classes=[0],
         region=region,
-        show=False
+        show=False,
+        up_angle=up_angle,
+        down_angle=down_angle
     )
+
 
     picam2 = Picamera2()
     picam2.preview_configuration.main.size = (FRAME_WIDTH, FRAME_HEIGHT)
@@ -130,6 +158,11 @@ def main():
             frame = picam2.capture_array()
             results = counter.process(frame)
             #print(f"[DEBUG] results.plot_im = {hasattr(results, 'plot_im')}")
+
+            # Manuelles Tauschen bei 180°-Richtung (rechts → links = IN)
+            if entry_angle == 180:
+                results.in_count, results.out_count = results.out_count, results.in_count
+
             export_counts(results)
 
             if not HEADLESS_MODE:
