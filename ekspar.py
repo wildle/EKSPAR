@@ -70,11 +70,12 @@ def main():
         return
 
     if not config_exists():
-        print("[ERROR] Keine bbox_config.json gefunden. Bitte zuerst Konfiguration durchführen.")
-        return
+        print("[WARNUNG] Keine bbox_config.json gefunden. Wechsle in Konfigurationsmodus...")
+        lock_camera("config")
+    else:
+        lock_camera("counting")
 
     try:
-        lock_camera("counting")
         start_streamlit()
         time.sleep(2)  # Dashboard initialisieren lassen
         start_counter()
