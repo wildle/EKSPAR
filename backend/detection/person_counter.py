@@ -1,3 +1,4 @@
+# ─── Imports ───
 import os
 import time
 import json
@@ -14,11 +15,11 @@ DIRECTION_CONFIG_PATH = "backend/config/direction_config.json"
 EXPORT_PATH = "data/counter.json"
 LOG_DB_PATH = "data/log.db"
 LOCK_PATH = "camera.lock"
-HEADLESS_MODE = True  # False = Debug mit OpenCV Fenster | True = HEADLESS Modus ohne GUI
+HEADLESS_MODE = True  # False = Debug-Modus mit OpenCV-Fenster
 FRAME_WIDTH = 1280
 FRAME_HEIGHT = 720
 
-# ─── Kamera sperre prüfen ───
+# ─── Kamera-Sperre prüfen ───
 def is_counting_mode():
     if not os.path.exists(LOCK_PATH):
         return False
@@ -49,8 +50,7 @@ def load_direction_config():
         print(f"[ERROR] Fehler beim Laden der direction_config.json: {e}")
         return None
 
-
-# ─── Zähldaten speichern ───
+# ─── Zähldaten in SQLite schreiben ───
 def log_to_db(data):
     try:
         conn = sqlite3.connect(LOG_DB_PATH)
@@ -77,8 +77,9 @@ def log_to_db(data):
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"[DB] Fehler beim Schreiben in die Datenbank: {e}")
+        print(f"[ERROR] Fehler beim Schreiben in die Datenbank: {e}")
 
+# ─── Zähldaten exportieren (JSON + DB) ───
 def export_counts(results):
     try:
         in_count = getattr(results, "in_count", 0)
@@ -99,12 +100,13 @@ def export_counts(results):
         log_to_db(data)
 
     except Exception as e:
-        print(f"[WARN] Fehler beim Exportieren der Zähldaten: {e}")
+        print(f"[ERROR] Fehler beim Exportieren der Zähldaten: {e}")
 
 # ─── Hauptfunktion ───
 def main():
     print("[INFO] Starte Personenzählung mit direkter Kamera...")
 
+    # Zählbereich und Richtung laden
     bbox = load_bbox()
     if not bbox:
         print("[ERROR] Kein Zählbereich definiert.")
@@ -116,11 +118,10 @@ def main():
         return
 
     entry_angle = direction["angle"]
-    up_angle = entry_angle
-    down_angle = (entry_angle + 180) % 360
-    print(f"[INFO] Eintrittsrichtung: {entry_angle}° → up={up_angle}, down={down_angle}")
-    
+    opposite_angle = (entry_angle + 180) % 360
+    print(f"[INFO] Eintrittsrichtung: {entry_angle}° → Gegenrichtung: {opposite_angle}°")
 
+    # Region als Polygon definieren (rechteckig)
     region = [
         (bbox["x"], bbox["y"]),
         (bbox["x"] + bbox["w"], bbox["y"]),
@@ -128,16 +129,17 @@ def main():
         (bbox["x"], bbox["y"] + bbox["h"])
     ]
 
+    # YOLO-basierter Objektzähler
     counter = ObjectCounter(
         model=MODEL_PATH,
-        classes=[0],
+        classes=[0],  # Klasse 0 = Personen
         region=region,
         show=False,
-        up_angle=up_angle,
-        down_angle=down_angle
+        up_angle=entry_angle,
+        down_angle=opposite_angle
     )
 
-
+    # Kamera konfigurieren
     picam2 = Picamera2()
     picam2.preview_configuration.main.size = (FRAME_WIDTH, FRAME_HEIGHT)
     picam2.preview_configuration.main.format = "RGB888"
@@ -148,18 +150,13 @@ def main():
     try:
         while True:
             if not is_counting_mode():
-                print("[INFO] Konfigurationsmodus erkannt – Zählung wird beendet.")
-                picam2.stop()
-                if not HEADLESS_MODE:
-                    cv2.destroyAllWindows()
-                os._exit(0)
-
+                print("[INFO] Konfigurationsmodus erkannt – Zählung wird gestoppt.")
+                break  # statt os._exit
 
             frame = picam2.capture_array()
             results = counter.process(frame)
-            #print(f"[DEBUG] results.plot_im = {hasattr(results, 'plot_im')}")
 
-            # Manuelles Tauschen bei 180°-Richtung (rechts → links = IN)
+            # Optional: manuelles Tauschen bei Eintritt von rechts (180°)
             if entry_angle == 180:
                 results.in_count, results.out_count = results.out_count, results.in_count
 
@@ -167,21 +164,19 @@ def main():
 
             if not HEADLESS_MODE:
                 frame_to_show = results.plot_im
-
                 if "window_initialized" not in globals():
                     cv2.namedWindow("Zählung", cv2.WINDOW_NORMAL)
                     globals()["window_initialized"] = True
 
                 cv2.imshow("Zählung", frame_to_show)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
+                if cv2.waitKey(1) & 0xFF == ord("q"):
                     break
-
 
     except KeyboardInterrupt:
         print("\n[INFO] Abbruch durch Benutzer.")
 
     except Exception as e:
-        print(f"[ERROR] Fehler: {e}")
+        print(f"[ERROR] Unerwarteter Fehler: {e}")
 
     finally:
         picam2.stop()
@@ -189,6 +184,6 @@ def main():
             cv2.destroyAllWindows()
         print("[INFO] Personenzählung gestoppt.")
 
-
+# ─── Startpunkt ───
 if __name__ == "__main__":
     main()
