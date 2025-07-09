@@ -61,3 +61,8 @@ hailo-rpi5-examples/
 hailo-apps-infra/
 dumbster/hailo-rpi5-examples
 external/hailo-apps-infra
+
+# Konfigurationsdateien (lokal vom Webinterface erzeugt)
+backend/config/bbox_config.json
+backend/config/direction_config.json
+

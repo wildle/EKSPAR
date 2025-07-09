@@ -171,99 +171,45 @@ if page == "📈 Live Dashboard":
 
 # ─── Konfigurationsmodus ───
 elif page == "📷 Konfiguration":
-    st.header("📷 EKSPAR – Konfigurationsmodus")
+    from frontend import components  # falls noch nicht importiert
 
-    edit_mode = st.session_state.get("edit_mode", False)
+    # ─── Session-State initialisieren ───
+    if "bbox" not in st.session_state:
+        st.session_state.bbox = None
+    if "direction" not in st.session_state:
+        st.session_state.direction = []
 
-    if not edit_mode:
-        if os.path.exists(IMAGE_PATH):
-            img = Image.open(IMAGE_PATH).convert("RGB")
-            display_width = 720
-            display_height = int(img.height * (display_width / img.width))
-            resized_img = img.resize((display_width, display_height))
-            draw_img = resized_img.copy()
+    # ⬅️ Zeige Konfigurationsübersicht beim ersten Aufruf
+    if "step" not in st.session_state:
+        from frontend.components import show_config_overview
+        show_config_overview()
+        st.stop()  # Verhindert, dass die Schritte unten ausgeführt werden
 
-            if os.path.exists(CONFIG_PATH):
-                with open(CONFIG_PATH, "r") as f:
-                    box = json.load(f)
-                    draw = ImageDraw.Draw(draw_img)
-                    scale_x = display_width / img.width
-                    scale_y = display_height / img.height
-                    draw.rectangle([
-                        (int(box["x"] * scale_x), int(box["y"] * scale_y)),
-                        (int((box["x"] + box["w"]) * scale_x), int((box["y"] + box["h"]) * scale_y))
-                    ], outline="#007BFF", width=3)
+    # ─── Hauptlogik je nach Schritt ───
+    step = st.session_state.step
+    components.draw_instruction_step(step)
 
-            st.image(draw_img, caption="Aufgenommenes Bild mit Zählbereich", width=display_width)
-
-            if st.button("🖑 Neue Konfiguration starten"):
-                # Kamera auf Konfigurationsmodus setzen
-                with open("camera.lock", "w") as f:
-                    f.write("config")
-                print("[INFO] Konfigurationsmodus gestartet – Zählung wird gestoppt.")
-
-                st.info("System ist im Konfigurationsmodus – Zählung wurde unterbrochen.")
-
-                st.session_state.edit_mode = True
-                if os.path.exists(CONFIG_PATH):
-                    os.remove(CONFIG_PATH)
-                st.rerun()
-
-        else:
-            st.warning("Noch kein Bild vorhanden. Bitte zuerst ein neues Bild aufnehmen.")
-
-    else:
-        st.markdown("### Schritt 1: Einzelbild aufnehmen")
-        if st.button("📷 Neues Bild aufnehmen"):
-            with st.spinner("Kamera aktiviert..."):
+    if step == 1:
+        if st.button("📷 Bild aufnehmen"):
+            with st.spinner("Kamera wird aktiviert..."):
                 success = capture_image()
             if success:
-                st.success("Bild erfolgreich aufgenommen!")
-            else:
-                st.error("Fehler beim Aufnehmen des Bildes.")
+                st.success("Bild erfolgreich aufgenommen.")
+                st.session_state.step = 2
+                st.rerun()
 
-        if os.path.exists(IMAGE_PATH):
-            img = Image.open(IMAGE_PATH)
+    elif step == 2:
 
-            from streamlit_drawable_canvas import st_canvas
+        if st.button("📸 Bild erneut aufnehmen"):
+            with st.spinner("Neues Bild wird aufgenommen..."):
+                success = capture_image()
+            if success:
+                st.success("Bild erfolgreich aktualisiert.")
+                st.rerun()
+        components.draw_bbox_ui_step()
 
-            canvas_result = st_canvas(
-                fill_color="rgba(0, 123, 255, 0.3)",
-                stroke_width=3,
-                stroke_color="#007BFF",
-                background_image=img,
-                update_streamlit=True,
-                height=int(img.height * (720 / img.width)),
-                width=720,
-                drawing_mode="rect",
-                key="canvas_edit_mode"
-            )
+    elif step == 3:
+        components.draw_direction_ui_step()
 
-            if st.button("📂 Konfiguration speichern", key="save_button_edit_mode"):
-                if canvas_result.json_data and canvas_result.json_data["objects"]:
-                    obj = canvas_result.json_data["objects"][-1]
-                    scale_x = img.width / 720
-                    scale_y = img.height / int(img.height * (720 / img.width))
-
-                    bbox = {
-                        "x": int(obj["left"] * scale_x),
-                        "y": int(obj["top"] * scale_y),
-                        "w": int(obj["width"] * scale_x),
-                        "h": int(obj["height"] * scale_y)
-                    }
-
-                    # Konfigurationsmodus beenden
-                    with open("camera.lock", "w") as f:
-                        f.write("counting")
-                    print("[INFO] Konfiguration gespeichert – Zählung wieder aktiviert.")
-
-
-                    with open(CONFIG_PATH, "w") as f:
-                        json.dump(bbox, f, indent=2)
-                    st.success("Konfiguration wurde gespeichert. Zurück zur Ansicht.")
-                    st.session_state.edit_mode = False
-                    st.rerun()
-                else:
-                    st.error("❌ Kein Zählbereich markiert. Bitte zuerst ein Rechteck einzeichnen.")
-        else:
-            st.warning("Kein Bild gefunden. Bitte zuerst ein Bild aufnehmen.")
+    elif step == 4:
+        components.draw_overview_and_save()
