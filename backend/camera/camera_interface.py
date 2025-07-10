@@ -3,39 +3,50 @@
 import os
 import subprocess
 import time
+import logging
 
-# Pfad zur capture_raw.py dynamisch bestimmen
+# Setup Logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+# Dynamischer Pfad zur capture_raw.py
 SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "capture_raw.py"))
 
-# Pfad zu Systempython
+# System-Python (außerhalb von .venv), notwendig für libcamera-Kompatibilität
 SYSTEM_PYTHON = "/usr/bin/python3"
 
 def capture_image() -> bool:
+    """
+    Nimmt ein Bild über ein externes Python-Skript auf (capture_raw.py).
+    Setzt zuvor das Lockfile auf 'config', um den Konfigurationsmodus zu aktivieren.
 
-        # Kamera auf Konfigurationsmodus setzen
-    with open("camera.lock", "w") as f:
-        f.write("config")
-    print("[INFO] Kamera auf 'config' gesetzt.")
-
-    # Warten, bis person_counter.py Kamera freigegeben hat
-    time.sleep(1.5)
-
+    Returns:
+        bool: True bei erfolgreicher Aufnahme, False sonst.
+    """
     try:
-        # Starte capture_raw.py als Subprozess
+        # Kamera auf Konfigurationsmodus setzen
+        with open("camera.lock", "w") as f:
+            f.write("config")
+        logging.info("Kamera auf 'config' gesetzt.")
+
+        # Kurze Wartezeit für das System (z. B. um Kamera freizugeben)
+        time.sleep(1.5)
+
+        # Starte capture_raw.py als Subprozess außerhalb der .venv
         result = subprocess.run(
             [SYSTEM_PYTHON, SCRIPT_PATH],
             capture_output=True,
             text=True
         )
-        if result.returncode == 0 and "[OK]" in result.stdout:
-            print("[INFO] Bild erfolgreich aufgenommen (via Subprozess).")
 
+        if result.returncode == 0 and "[OK]" in result.stdout:
+            logging.info("Bild erfolgreich aufgenommen (via Subprozess).")
             return True
         else:
-            print("[ERROR] Aufnahme fehlgeschlagen:")
-            print(result.stdout)
-            print(result.stderr)
+            logging.error("Bildaufnahme fehlgeschlagen:")
+            logging.error(result.stdout)
+            logging.error(result.stderr)
             return False
+
     except Exception as e:
-        print(f"[EXCEPTION] Subprozess konnte nicht ausgeführt werden: {e}")
+        logging.exception("Subprozess konnte nicht ausgeführt werden:")
         return False
