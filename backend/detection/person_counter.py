@@ -15,7 +15,8 @@ from ultralytics.solutions import ObjectCounter
 import cv2  # Nur für Debug-Visualisierung
 
 # ─── Konfiguration ─────────────────────────────────────────────────────────────
-MODEL_PATH = "models/yolo11n.pt"
+# MODEL_PATH = "models/yolo11n.pt"          # PyTorch (3.1 FPS, 310ms)
+MODEL_PATH = "models/yolo11n_ncnn_model"    # NCNN (6.7 FPS, 150ms) ✅
 BBOX_CONFIG_PATH = "backend/config/bbox_config.json"
 DIRECTION_CONFIG_PATH = "backend/config/direction_config.json"
 EXPORT_PATH = "data/counter.json"
@@ -196,6 +197,11 @@ def main() -> None:
     picam2.configure("preview")
     picam2.start()
 
+    # ── Performance-Tracking (auskommentiert nach Benchmark) ──
+    # frame_count = 0
+    # start_time = time.time()
+    # inference_times = []
+
     try:
         while True:
             # Prüfen, ob der Modus gewechselt wurde
@@ -205,7 +211,27 @@ def main() -> None:
 
             # Frame aufnehmen und verarbeiten
             frame = picam2.capture_array()
+            
+            # Performance-Messung (auskommentiert nach Benchmark)
+            # inference_start = time.time()
             results = counter.process(frame)
+            # inference_end = time.time()
+            
+            # Statistiken sammeln (auskommentiert nach Benchmark)
+            # frame_count += 1
+            # inference_time = inference_end - inference_start
+            # inference_times.append(inference_time)
+            
+            # Alle 30 Frames: Performance ausgeben (auskommentiert nach Benchmark)
+            # if frame_count % 30 == 0:
+            #     elapsed = time.time() - start_time
+            #     fps = frame_count / elapsed
+            #     avg_inference = sum(inference_times[-30:]) / min(30, len(inference_times))
+            #     print(f"[PERF] FPS: {fps:.1f} | Avg Inference: {avg_inference*1000:.0f}ms | Model: {MODEL_PATH}")
+            #     
+            #     # Memory-sparend: nur letzte 100 Zeiten behalten
+            #     if len(inference_times) > 100:
+            #         inference_times = inference_times[-100:]
 
             # Spezialfall: Richtung 180° → Zählung umkehren
             if entry_angle == 180:
