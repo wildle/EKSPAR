@@ -1,4 +1,10 @@
-# ─── Imports ───
+# person_counter.py – Zähllogik für das EKSPAR-System
+"""
+Startet die Live-Personenzählung mit Kamera und YOLOv11n.
+Verwendet den definierten Zählbereich (Bounding Box) und eine Eintrittsrichtung.
+"""
+
+# ─── Imports ───────────────────────────────────────────────────────────────────
 import os
 import time
 import json
@@ -8,26 +14,39 @@ from picamera2 import Picamera2
 from ultralytics.solutions import ObjectCounter
 import cv2  # Nur für Debug-Visualisierung
 
-# ─── Konfiguration ───
+# ─── Konfiguration ─────────────────────────────────────────────────────────────
 MODEL_PATH = "models/yolo11n.pt"
 BBOX_CONFIG_PATH = "backend/config/bbox_config.json"
 DIRECTION_CONFIG_PATH = "backend/config/direction_config.json"
 EXPORT_PATH = "data/counter.json"
 LOG_DB_PATH = "data/log.db"
 LOCK_PATH = "camera.lock"
+
 HEADLESS_MODE = True  # False = Debug-Modus mit OpenCV-Fenster
 FRAME_WIDTH = 1280
 FRAME_HEIGHT = 720
 
-# ─── Kamera-Sperre prüfen ───
-def is_counting_mode():
+# ─── Kamera-Modus prüfen ───────────────────────────────────────────────────────
+def is_counting_mode() -> bool:
+    """Prüft, ob der Zählmodus aktiv ist.
+
+    Gibt True zurück, wenn die Lock-Datei 'camera.lock' den Modus 'counting' enthält.
+    
+    Returns:
+        bool: True wenn Zählmodus aktiv, sonst False.
+    """
     if not os.path.exists(LOCK_PATH):
         return False
     with open(LOCK_PATH, "r") as f:
         return f.read().strip() == "counting"
 
-# ─── Bounding Box laden ───
-def load_bbox():
+# ─── Bounding Box laden ────────────────────────────────────────────────────────
+def load_bbox() -> dict | None:
+    """Lädt die Bounding-Box-Konfiguration aus der JSON-Datei.
+
+    Returns:
+        dict | None: Bounding-Box-Daten (x, y, w, h) oder None bei Fehler.
+    """
     if not os.path.exists(BBOX_CONFIG_PATH):
         print("[WARN] Keine Zählbereich-Konfiguration gefunden.")
         return None
@@ -38,8 +57,13 @@ def load_bbox():
         print(f"[ERROR] Fehler beim Laden der bbox_config.json: {e}")
         return None
 
-# ─── Richtungskonfiguration laden ───
-def load_direction_config():
+# ─── Richtungskonfiguration laden ──────────────────────────────────────────────
+def load_direction_config() -> dict | None:
+    """Lädt die Eintrittsrichtung aus der JSON-Datei.
+
+    Returns:
+        dict | None: Richtungskonfiguration mit 'angle'-Wert oder None bei Fehler.
+    """
     if not os.path.exists(DIRECTION_CONFIG_PATH):
         print("[WARN] Keine Richtungskonfiguration gefunden.")
         return None
@@ -50,8 +74,16 @@ def load_direction_config():
         print(f"[ERROR] Fehler beim Laden der direction_config.json: {e}")
         return None
 
-# ─── Zähldaten in SQLite schreiben ───
-def log_to_db(data):
+# ─── Zähldaten in SQLite schreiben ─────────────────────────────────────────────
+def log_to_db(data: dict) -> None:
+    """Schreibt Zähldaten in die lokale SQLite-Datenbank.
+
+    Erstellt die Tabelle 'log' bei Bedarf und speichert einen neuen Eintrag.
+
+    Args:
+        data (dict): Zähldaten im Format mit Schlüsseln
+            'timestamp', 'in', 'out', 'current', 'total_tracks'.
+    """
     try:
         conn = sqlite3.connect(LOG_DB_PATH)
         cursor = conn.cursor()
@@ -79,8 +111,16 @@ def log_to_db(data):
     except Exception as e:
         print(f"[ERROR] Fehler beim Schreiben in die Datenbank: {e}")
 
-# ─── Zähldaten exportieren (JSON + DB) ───
-def export_counts(results):
+# ─── Zähldaten exportieren (JSON + DB) ─────────────────────────────────────────
+def export_counts(results) -> None:
+    """Exportiert Zähldaten aus einem Detection-Ergebnis.
+
+    Erstellt ein JSON-Dokument mit Zeitstempel und Zählwerten und speichert zusätzlich in SQLite.
+
+    Args:
+        results: Ergebnisobjekt von ObjectCounter mit Attributen
+            'in_count', 'out_count', 'total_tracks'.
+    """
     try:
         in_count = getattr(results, "in_count", 0)
         out_count = getattr(results, "out_count", 0)
@@ -102,11 +142,20 @@ def export_counts(results):
     except Exception as e:
         print(f"[ERROR] Fehler beim Exportieren der Zähldaten: {e}")
 
-# ─── Hauptfunktion ───
-def main():
+# ─── Hauptfunktion ─────────────────────────────────────────────────────────────
+def main() -> None:
+    """Startet die Live-Personenzählung mit Kamera und ObjectCounter.
+
+    Ablauf:
+    - Lädt Bounding Box und Richtungskonfiguration
+    - Initialisiert Kamera und ObjectCounter
+    - Führt kontinuierliche Erkennung durch
+    - Exportiert Zähldaten als JSON + SQLite
+    - Unterstützt Debug-Modus mit OpenCV-Vorschau (optional)
+    """
     print("[INFO] Starte Personenzählung mit direkter Kamera...")
 
-    # Zählbereich und Richtung laden
+    # ── Konfiguration laden ──
     bbox = load_bbox()
     if not bbox:
         print("[ERROR] Kein Zählbereich definiert.")
@@ -121,7 +170,7 @@ def main():
     opposite_angle = (entry_angle + 180) % 360
     print(f"[INFO] Eintrittsrichtung: {entry_angle}° → Gegenrichtung: {opposite_angle}°")
 
-    # Region als Polygon definieren (rechteckig)
+    # ── Region definieren ──
     region = [
         (bbox["x"], bbox["y"]),
         (bbox["x"] + bbox["w"], bbox["y"]),
@@ -129,7 +178,7 @@ def main():
         (bbox["x"], bbox["y"] + bbox["h"])
     ]
 
-    # YOLO-basierter Objektzähler
+    # ── ObjectCounter initialisieren ──
     counter = ObjectCounter(
         model=MODEL_PATH,
         classes=[0],  # Klasse 0 = Personen
@@ -139,7 +188,7 @@ def main():
         down_angle=opposite_angle
     )
 
-    # Kamera konfigurieren
+    # ── Kamera konfigurieren ──
     picam2 = Picamera2()
     picam2.preview_configuration.main.size = (FRAME_WIDTH, FRAME_HEIGHT)
     picam2.preview_configuration.main.format = "RGB888"
@@ -149,19 +198,23 @@ def main():
 
     try:
         while True:
+            # Prüfen, ob der Modus gewechselt wurde
             if not is_counting_mode():
                 print("[INFO] Konfigurationsmodus erkannt – Zählung wird gestoppt.")
-                break  # statt os._exit
+                break
 
+            # Frame aufnehmen und verarbeiten
             frame = picam2.capture_array()
             results = counter.process(frame)
 
-            # Optional: manuelles Tauschen bei Eintritt von rechts (180°)
+            # Spezialfall: Richtung 180° → Zählung umkehren
             if entry_angle == 180:
                 results.in_count, results.out_count = results.out_count, results.in_count
 
+            # Zähldaten exportieren
             export_counts(results)
 
+            # Debug-Vorschau (optional)
             if not HEADLESS_MODE:
                 frame_to_show = results.plot_im
                 if "window_initialized" not in globals():
@@ -184,6 +237,7 @@ def main():
             cv2.destroyAllWindows()
         print("[INFO] Personenzählung gestoppt.")
 
-# ─── Startpunkt ───
+# ─── Startpunkt ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
+    # Einstiegspunkt für das EKSPAR-Zählsystem
     main()
