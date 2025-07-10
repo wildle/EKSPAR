@@ -7,6 +7,7 @@ import json
 import os
 import math
 from datetime import datetime
+import io
 
 # ─── Pfade setzen ───
 CURRENT_DIR = os.path.dirname(__file__)
@@ -20,6 +21,12 @@ LOCK_PATH = os.path.join(ROOT_DIR, "camera.lock")
 # ────────────────────────────────────────────────────────────────────────────────
 # 📦 Utility Funktionen
 # ────────────────────────────────────────────────────────────────────────────────
+def load_image_fresh(path):
+    """Lädt ein Bild unabhängig vom Dateicache."""
+    with open(path, "rb") as f:
+        return Image.open(io.BytesIO(f.read())).copy()
+
+
 def annotate_daytime(hour):
     if 0 <= hour < 6:
         return "🌙 Nacht"
@@ -183,20 +190,26 @@ def draw_instruction_step(step):
     }
     st.markdown(f"## 🧭 Konfiguration: Schritt {step} – {step_titles.get(step, 'Unbekannt')}")
 
-    instructions = {
-        1: "📷 Bitte ein neues Bild aufnehmen.",
-        2: "🟦 Markiere den Zählbereich in Form eines Rechtecks.",
-        3: "➡️ Wähle, aus welcher Richtung Personen den Raum **betreten**.",
-        4: "💾 Überprüfe und speichere die Konfiguration."
-    }
-    st.info(instructions.get(step, "Unbekannter Schritt."))
+    if step == 1:
+        if os.path.exists(IMAGE_PATH):
+            st.info("📷 Bitte ein Bild aufnehmen und danach auf 'Weiter' klicken.")
+        else:
+            st.info("📷 Bitte ein neues Bild aufnehmen.")
+    elif step == 2:
+        st.info("🟦 Markiere den Zählbereich in Form eines Rechtecks.")
+    elif step == 3:
+        st.info("➡️ Wähle, aus welcher Richtung Personen den Raum **betreten**.")
+    elif step == 4:
+        st.info("💾 Überprüfe und speichere die Konfiguration.")
+    else:
+        st.info("Unbekannter Schritt.")
 
 def draw_bbox_ui_step():
     if not os.path.exists(IMAGE_PATH):
         st.warning("❌ Kein Bild gefunden. Bitte zuerst ein Bild aufnehmen (Schritt 1).")
         return
     try:
-        bg_image = Image.open(IMAGE_PATH)
+        bg_image = load_image_fresh(IMAGE_PATH)
     except Exception as e:
         st.error(f"Fehler beim Laden des Bildes: {e}")
         return
@@ -221,7 +234,7 @@ def draw_bbox_ui_step():
             "w": int(obj["width"]),
             "h": int(obj["height"])
         }
-        if st.button("✅ Bounding Box speichern und weiter"):
+        if st.button("➡ Weiter zu Schritt 3"):
             save_bbox(bbox)
             st.session_state.bbox = bbox
             st.session_state.step = 3
@@ -250,7 +263,7 @@ def draw_bbox_preview_only():
     if not os.path.exists(IMAGE_PATH) or "bbox" not in st.session_state:
         return
     try:
-        img = Image.open(IMAGE_PATH).convert("RGB").copy()
+        img = load_image_fresh(IMAGE_PATH).convert("RGB")
         draw = ImageDraw.Draw(img)
         box = st.session_state.bbox
         draw.rectangle(
@@ -269,7 +282,7 @@ def draw_overview_and_save():
         st.error("❌ Bounding Box oder Richtung fehlt.")
         return
     try:
-        img = Image.open(IMAGE_PATH).convert("RGB").copy()
+        img = load_image_fresh(IMAGE_PATH).convert("RGB")
         draw = ImageDraw.Draw(img)
         box = st.session_state.bbox
         draw.rectangle(
@@ -282,7 +295,8 @@ def draw_overview_and_save():
         draw_arrowhead(draw, p1, p2)
         r = 10
         draw.ellipse((p1[0]-r, p1[1]-r, p1[0]+r, p1[1]+r), fill="green")
-        st.success(f"{'➡️' if entry == 'left_to_right' else '⬅️'} Eintrittsrichtung: {entry.replace('_', ' ')}")
+        de_label = "von links nach rechts" if entry == "left_to_right" else "von rechts nach links"
+        st.success(f"{'➡️' if entry == 'left_to_right' else '⬅️'} Eintrittsrichtung: {de_label}")
         st.image(img, caption="Vorschau: Zählbereich + Richtungspfeil", width=1280)
         dx, dy = p2[0] - p1[0], p2[1] - p1[1]
         angle = math.degrees(math.atan2(dy, dx))
@@ -296,6 +310,19 @@ def draw_overview_and_save():
             st.session_state.bbox = None
             st.session_state.direction = []
             st.rerun()
+
+        if st.button("❌ Abbrechen & Neue Konfiguration starten"):
+            st.session_state.step = 1
+            st.session_state.bbox = None
+            st.session_state.direction = []
+            if os.path.exists(CONFIG_PATH):
+                os.remove(CONFIG_PATH)
+            if os.path.exists(DIRECTION_PATH):
+                os.remove(DIRECTION_PATH)
+            if os.path.exists(LOCK_PATH):
+                os.remove(LOCK_PATH)
+            st.rerun()
+
     except Exception as e:
         st.error(f"Fehler beim Zeichnen/Speichern: {e}")
 
@@ -306,7 +333,7 @@ def show_config_overview():
         st.info("ℹ️ Noch keine vollständige Konfiguration vorhanden.")
         return
     try:
-        img = Image.open(IMAGE_PATH).convert("RGB").copy()
+        img = load_image_fresh(IMAGE_PATH).convert("RGB")
         draw = ImageDraw.Draw(img)
         draw.rectangle(
             [(bbox["x"], bbox["y"]), (bbox["x"] + bbox["w"], bbox["y"] + bbox["h"])],

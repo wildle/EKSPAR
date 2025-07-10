@@ -178,6 +178,13 @@ if page == "📈 Live Dashboard":
 
 # ─── Konfigurationsmodus ───
 elif page == "📷 Konfiguration":
+    # Bei Seitenwechsel ggf. "step" zurücksetzen, damit Übersicht angezeigt wird
+    if "last_page" not in st.session_state or st.session_state.last_page != page:
+        if "step" in st.session_state:
+            del st.session_state["step"]
+        st.session_state.last_page = page
+        st.rerun()
+
     from frontend import components  # falls noch nicht importiert
 
     # ─── Session-State initialisieren ───
@@ -197,22 +204,29 @@ elif page == "📷 Konfiguration":
     components.draw_instruction_step(step)
 
     if step == 1:
+        show = False
         if st.button("📷 Bild aufnehmen"):
             with st.spinner("Kamera wird aktiviert..."):
                 success = capture_image()
             if success:
                 st.success("Bild erfolgreich aufgenommen.")
+                st.session_state.image_updated = True
+                show = True
+
+        if st.session_state.get("image_updated", False) or os.path.exists(IMAGE_PATH):
+            try:
+                img = components.load_image_fresh(IMAGE_PATH)
+                st.image(img, caption="📸 Aufgenommenes Bild", width=1280)
+            except Exception as e:
+                st.error(f"Bild konnte nicht geladen werden: {e}")
+
+        if os.path.exists(IMAGE_PATH):
+            if st.button("➡ Weiter zu Schritt 2"):
                 st.session_state.step = 2
+                st.session_state.image_updated = False
                 st.rerun()
 
     elif step == 2:
-
-        if st.button("📸 Bild erneut aufnehmen"):
-            with st.spinner("Neues Bild wird aufgenommen..."):
-                success = capture_image()
-            if success:
-                st.success("Bild erfolgreich aktualisiert.")
-                st.rerun()
         components.draw_bbox_ui_step()
 
     elif step == 3:
@@ -220,3 +234,4 @@ elif page == "📷 Konfiguration":
 
     elif step == 4:
         components.draw_overview_and_save()
+
