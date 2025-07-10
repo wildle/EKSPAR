@@ -1,8 +1,10 @@
-ultralytics==8.1.38
-opencv-python
-Pillow
-numpy
-pandas
+# Zähllogik
+ultralytics==8.3.162
+opencv-python==4.11.0.86
+
+# Dashboard
 streamlit==1.44.1
 streamlit-drawable-canvas==0.8.0
-altair
+pillow==11.2.1
+pandas==2.2.3
+altair==5.5.0
