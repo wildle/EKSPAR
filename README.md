@@ -2,12 +2,12 @@
 
 ## 📌 Projektziel
 
-**EKSPAR** (Edge-KI-System zur Personenanalyse in Räumen) ist ein datenschutzkonformes, modular aufgebautes Zählsystem mit Echtzeitverarbeitung auf dem Raspberry Pi 5. Es zählt anonym Personen, erkennt Eintrittsrichtungen und stellt die Ergebnisse über ein Dashboard zur Verfügung. Es werden **keine Bilder oder Videos gespeichert**.
+**EKSPAR** (Edge-KI-System zur Personenanalyse in Räumen) ist ein datenschutzkonformes, modular aufgebautes Zählsystem mit Echtzeitverarbeitung auf dem Raspberry Pi 5. Es zählt anonym Personen, erkennt Eintrittsrichtungen und stellt die Ergebnisse über ein Dashboard zur Verfügung. Es werden **keine Bilder oder Videos gespeichert**. Ab Version 1.2 wird das System standardmäßig mit dem optimierten YOLOv11n-NCNN-Modell ausgeliefert.
 
 ## 🛠 Systemübersicht
 
 * Raspberry Pi 5 + AI-Kamera (picamera2)
-* Live-Objekterkennung mit YOLOv11n (Ultralytics)
+* Live-Objekterkennung mit YOLOv11n (NCNN-Inferenz auf ARM)
 * Zählung durch Eintritt in eine konfigurierbare Region (Bounding Box)
 * Richtungsvorgabe per Winkelkonfiguration (`angle`)
 * Metadatenspeicherung (JSON + SQLite)
@@ -28,7 +28,8 @@ EKSPAR/
 ├── frontend/
 │   ├── dashboard.py             # Streamlit-Oberfläche
 │   └── components.py            # UI-Komponenten
-├── models/yolo11n.pt           # YOLOv11n-Modell
+├── models/yolo11n.pt           # PyTorch-Modell (Legacy, optional)
+├── models/yolo11n_ncnn_model/  # NCNN-Modell (Standard ab v1.2)
 ├── data/log.db                 # SQLite-Datenbank
 ├── data/counter.json           # Aktueller Zählstand
 ├── static/last_config.jpg      # Konfigurationsbild
@@ -72,7 +73,7 @@ Das Script erkennt automatisch, ob eine Konfiguration vorhanden ist, und startet
 ## 📊 Live-Zählung
 
 * Die Kamera erfasst Personen im konfigurierten Bereich
-* Die Bewegungsrichtung wird **nicht erkannt**, sondern anhand des konfigurierten Winkels umgedreht (z. B. `angle = 180` → IN/OUT getauscht)
+* Die Bewegungsrichtung wird **nicht erkannt**, sondern anhand des konfigurierten Winkels umgedreht (z. B. `angle = 180` → IN/OUT getauscht)
 * Die **aktuelle Anzahl**, **IN/OUT-Zahlen** und **Verlauf** werden:
 
   * in `data/counter.json` gespeichert
@@ -84,9 +85,9 @@ Das Script erkennt automatisch, ob eine Konfiguration vorhanden ist, und startet
 | Funktion               | Beschreibung                                                             |
 | ---------------------- | ------------------------------------------------------------------------ |
 | 👥 Live-Zähler         | Echtzeit-Anzeige von IN, OUT, aktuelle Personenanzahl                    |
-| 📈 Verlauf             | Aggregierte Zeitreihe der Personen im Raum                               |
+| 📊 Verlauf             | Aggregierte Zeitreihe der Personen im Raum                               |
 | 🔹 Personen pro Stunde | Balkendiagramm der Eintritte ("Heute", "Gestern", "Letzte Woche")        |
-| 🔷 Tagesverlauf (avg.) | Durchschnittlicher Tagesverlauf (z. B. 08:00, 09:00...) für mehrere Tage |
+| 🔸 Tagesverlauf (avg.) | Durchschnittlicher Tagesverlauf (z. B. 08:00, 09:00...) für mehrere Tage |
 | 📄 CSV-Export          | Zeitreihendaten als CSV-Datei exportieren                                |
 | 📷 Konfiguration       | Bildaufnahme, Bounding Box, Richtungspfeil                               |
 
@@ -106,6 +107,34 @@ sudo apt install python3-picamera2
 * Headless-Betrieb möglich (kein GUI erforderlich)
 * Kein Cloud-Zugriff, volle Offline-Funktion
 
+### 🧐 Modell-Inferenz: PyTorch vs. NCNN
+
+Das System verwendet standardmäßig das **NCNN-optimierte YOLOv11n-Modell**, das speziell für ARM-Prozessoren (Raspberry Pi 5) optimiert ist. Es ersetzt das frühere PyTorch-Modell:
+
+| Metrik         | NCNN       | PyTorch  |
+| -------------- | ---------- | -------- |
+| FPS            | 6.7        | 3.1      |
+| Inference-Zeit | \~150 ms   | \~310 ms |
+| Speicherbedarf | gering     | höher    |
+| Empfehlung     | ✅ Standard | ❌ Legacy |
+
+**Modellwechsel:**
+
+```python
+# PyTorch (alt)
+MODEL_PATH = "models/yolo11n.pt"
+
+# NCNN (neu)
+MODEL_PATH = "models/yolo11n_ncnn_model"
+```
+
+Bei Bedarf kann das frühere Modell weiterhin verwendet werden, z. B. für Vergleiche oder Tests. Das Format `.pt` wird jedoch **nicht mehr empfohlen**.
+
+Weitere Infos:
+
+* NCNN-Integration: [ultralytics.com/integrations/ncnn](https://docs.ultralytics.com/integrations/ncnn/)
+* Object-Counting-Architektur: [ultralytics.com/guides/object-counting](https://docs.ultralytics.com/guides/object-counting/)
+
 ## 🧰 Entwicklungsabhängigkeiten
 
 Siehe `requirements.txt`:
@@ -124,4 +153,4 @@ altair==5.5.0
 
 > Entwickelt im Rahmen der Bachelorarbeit "Entwicklung eines Kamera-basierten
 >
-> Systems zur Personenzählung und Analyse der Raumnutzung" am MCI
+> Systems zur Personenzählung und Analyse der Raumnutzung" am MCI
