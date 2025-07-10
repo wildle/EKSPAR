@@ -24,7 +24,7 @@ IMAGE_PATH = os.path.join(STATIC_DIR, 'last_config.jpg')
 
 # 🛠 Eigene Module importieren
 from backend.camera.camera_interface import capture_image
-from frontend.components import show_live_counts, show_count_history, show_hourly_distribution, show_daily_average
+from frontend.components import show_live_counts, show_count_history, show_hourly_distribution, show_daily_average, apply_dynamic_aggregation
 
 # ─── Sicherheitsprüfung ───
 if "step" not in st.session_state and (not os.path.exists(CONFIG_PATH) or not os.path.exists(DIRECTION_PATH)):
@@ -47,37 +47,6 @@ def init_db():
     """)
     conn.commit()
     conn.close()
-
-# ─── Dynamische Aggregation ───
-def apply_dynamic_aggregation(df, time_filter):
-    df["timestamp"] = pd.to_datetime(df["timestamp"], format="%Y-%m-%dT%H:%M:%S.%f", errors="coerce")
-
-    if time_filter == "Heute":
-        df["rounded_time"] = df["timestamp"].dt.floor("10min")
-    elif time_filter == "Gestern":
-        df["rounded_time"] = df["timestamp"].dt.floor("30min")
-    elif time_filter == "Letzte Woche":
-        df["rounded_time"] = df["timestamp"].dt.floor("1h")
-    elif time_filter == "Letzter Monat":
-        df["rounded_time"] = df["timestamp"].dt.floor("1d")
-    elif time_filter == "Letztes Jahr":
-        df["rounded_time"] = df["timestamp"].dt.to_period("W").dt.start_time
-    elif time_filter == "Insgesamt":
-        df["rounded_time"] = df["timestamp"].dt.to_period("M").dt.start_time
-    else:
-        df["rounded_time"] = df["timestamp"]
-
-    df = df.groupby("rounded_time").agg({
-        "in_count": "max",
-        "out_count": "max",
-        "current_count": "max",
-        "total_tracks": "max"
-    }).reset_index()
-
-    df.rename(columns={"rounded_time": "timestamp"}, inplace=True)
-    df["current_count"] = df["current_count"].round().astype(int)
-
-    return df
 
 # ─── Initialisieren ───
 init_db()
