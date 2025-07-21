@@ -550,7 +550,7 @@ def draw_overview_and_save() -> None:
         p1, p2 = ((100, 360), (1180, 360)) if entry == "left_to_right" else ((1180, 360), (100, 360))
         draw.line([p1, p2], fill="red", width=5)
         draw_arrowhead(draw, p1, p2)
-        draw.ellipse((p1[0]-10, p1[1]-10, p1[0]+10, p1[1]+10), fill="green")
+        draw.ellipse((p1[0]-10, p1[1]-10, p1[0]+10, p1[1]+10), fill="red")
 
         de_label = "von links nach rechts" if entry == "left_to_right" else "von rechts nach links"
         st.success(f"{'➡️' if entry == 'left_to_right' else '⬅️'} Eintrittsrichtung: {de_label}")
