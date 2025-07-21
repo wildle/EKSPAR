@@ -10,9 +10,18 @@ import time
 import json
 import datetime
 import sqlite3
+import logging
 from picamera2 import Picamera2
 from ultralytics.solutions import ObjectCounter
 import cv2  # Nur für Debug-Visualisierung
+
+# ─── Logging Setup (ultralytics Warnungen unterdrücken) ────────────────────────
+logging.getLogger("ultralytics").setLevel(logging.ERROR)
+logging.getLogger("yolo").setLevel(logging.ERROR)
+
+# Ultralytics Console-Output komplett deaktivieren
+os.environ["YOLO_VERBOSE"] = "False"
+os.environ["ULTRALYTICS_VERBOSE"] = "False"
 
 # ─── Konfiguration ─────────────────────────────────────────────────────────────
 # MODEL_PATH = "models/yolo11n.pt"          # PyTorch (3.1 FPS, 310ms)
@@ -23,7 +32,7 @@ EXPORT_PATH = "data/counter.json"
 LOG_DB_PATH = "data/log.db"
 LOCK_PATH = "camera.lock"
 
-HEADLESS_MODE = True  # False = Debug-Modus mit OpenCV-Fenster
+HEADLESS_MODE = False  # False = Debug-Modus mit OpenCV-Fenster
 FRAME_WIDTH = 1280
 FRAME_HEIGHT = 720
 
