@@ -9,7 +9,7 @@
 * Raspberry Pi 5 + AI-Kamera (picamera2)
 * Live-Objekterkennung mit YOLOv11n (NCNN-Inferenz auf ARM)
 * Zählung durch Eintritt in eine konfigurierbare Region (Bounding Box)
-* Richtungsvorgabe per Winkelkonfiguration (`angle`)
+* Konfiguration der Eintrittsrichtung
 * Metadatenspeicherung (JSON + SQLite)
 * Visualisierung im Streamlit-Dashboard
 
@@ -22,6 +22,7 @@ EKSPAR/
 │   ├── detection/person_counter.py
 │   ├── config/bbox_config.json
 │   ├── config/direction_config.json
+    ├── object_counter.py
 │   └── camera/
 │       ├── capture_raw.py       # Einzelbild für Konfiguration
 │       └── camera_interface.py  # Subprozess-Ausführung für picamera2
@@ -34,7 +35,7 @@ EKSPAR/
 ├── data/counter.json           # Aktueller Zählstand
 ├── static/last_config.jpg      # Konfigurationsbild
 ├── requirements.txt            # Python-Abhängigkeiten
-└── README.md                   # Diese Datei
+└── README.md                   
 ```
 
 ## 🚀 Schnellstart
